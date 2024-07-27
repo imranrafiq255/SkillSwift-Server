@@ -6,4 +6,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 require("./config/dbConnection.config")(process.env.MONGO_URI);
+require("./config/cloudinary.config")();
+
+const Consumer = require("./routes/consumer.routes");
+app.use("/api/v1/consumer", Consumer);
 module.exports = app;
