@@ -15,7 +15,7 @@ const singleImageUpload = require("../middlewares/singleImageUpload.middlewares"
 
 const Router = express.Router();
 Router.route("/sign-up").post(signUp);
-Router.route("/avatar-phone-upload/:id").post(
+Router.route("/avatar-phone-upload").post(
   isConsumerAuthenticated,
   singleImageUpload("consumerAvatar"),
   avatarAndPhoneNumber

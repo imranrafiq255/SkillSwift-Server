@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-
+const bcrypt = require("bcrypt");
 const serviceProviderSchema = mongoose.Schema(
   {
     serviceProviderFullName: {

@@ -109,6 +109,8 @@ const sendConfirmEmail = async (email, confirmEmailLink) => {
                     <div class="footer">
                         <p>If you did not sign up for this account, you can ignore this email.</p>
                     </div>
+                    <p style="color: #555;">If you didn't request a password reset, please ignore this email or contact support if you have questions.</p>
+                    <p style="color: #555;">Thanks, <br /> The Team</p>
                 </div>
             </body>
             </html>

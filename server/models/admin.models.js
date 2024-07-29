@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcrypt");
 const adminSchema = mongoose.Schema(
   {
     adminFullName: {
@@ -56,6 +57,10 @@ const adminSchema = mongoose.Schema(
         },
       },
     ],
+    adminTokenVersion: {
+      type: Number,
+      default: 0,
+    },
     refunds: [
       {
         refund: {
@@ -68,7 +73,7 @@ const adminSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-adminSchema.pre("save", async function () {
+adminSchema.pre("save", async function (next) {
   try {
     if (!this.isModified("adminPassword")) return next();
     this.adminPassword = await bcrypt.hash(this.adminPassword, 10);
@@ -78,5 +83,5 @@ adminSchema.pre("save", async function () {
   }
 });
 
-const AdminModel = mongoose.model("Admin", adminSchema);
-module.exports = AdminModel;
+const adminModel = mongoose.model("Admin", adminSchema);
+module.exports = adminModel;

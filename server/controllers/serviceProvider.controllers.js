@@ -1,31 +1,35 @@
 const { STATUS_CODES } = require("http");
-const consumerModel = require("../models/consumer.models");
+const serviceProviderModel = require("../models/serviceProvider.models");
 const jwt = require("jsonwebtoken");
-const cloudinary = require("cloudinary");
-const fileUri = require("../config/fileUri.config");
 const {
   sendConfirmEmail,
   sendPasswordResetEmail,
 } = require("../config/email.config");
+const fileUri = require("../config/fileUri.config");
+const cloudinary = require("cloudinary");
 const bcrypt = require("bcrypt");
 exports.signUp = async (req, res) => {
   try {
-    const { consumerFullName, consumerEmail, consumerPassword } = req.body;
-    const newConsumer = await new consumerModel({
-      consumerFullName,
-      consumerEmail,
-      consumerPassword,
+    const {
+      serviceProviderFullName,
+      serviceProviderEmail,
+      serviceProviderPassword,
+    } = req.body;
+    const newServiceProvider = await new serviceProviderModel({
+      serviceProviderFullName,
+      serviceProviderEmail,
+      serviceProviderPassword,
     }).save();
     const token = jwt.sign(
       {
-        _id: newConsumer._id,
+        _id: newServiceProvider._id,
       },
-      process.env.CONSUMER_EMAIL_SECRET_TOKEN,
+      process.env.SERVICE_PROVIDER_EMAIL_SECRET_TOKEN,
       { expiresIn: "1h" }
     );
     const clientUrl =
-      process.env.CLIENT_URL + "/consumer-confirm-email" + `/${token}`;
-    sendConfirmEmail(newConsumer.consumerEmail, clientUrl);
+      process.env.CLIENT_URL + "/service-provider-confirm-email" + `/${token}`;
+    sendConfirmEmail(newServiceProvider.serviceProviderEmail, clientUrl);
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message:
@@ -49,7 +53,7 @@ exports.verifyEmail = async (req, res) => {
     }
     const decodedToken = jwt.verify(
       myToken,
-      process.env.CONSUMER_EMAIL_SECRET_TOKEN,
+      process.env.SERVICE_PROVIDER_EMAIL_SECRET_TOKEN,
       { expiresIn: "1h" }
     );
     if (!decodedToken) {
@@ -58,31 +62,34 @@ exports.verifyEmail = async (req, res) => {
         message: "Token is invalid",
       });
     }
-    const consumer = await consumerModel.findByIdAndUpdate(
+    const serviceProvider = await serviceProviderModel.findByIdAndUpdate(
       { _id: decodedToken._id },
       { isEmailVerified: true },
       { new: true }
     );
-    if (!consumer) {
+    if (!serviceProvider) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
         message:
-          "Consumer not found in database with id '" + decodedToken._id + "'",
+          "Service provider not found in database with id '" +
+          decodedToken._id +
+          "'",
       });
     }
     const token = await jwt?.sign(
       {
-        _id: consumer._id,
-        consumerTokenVersion: consumer.consumerTokenVersion,
+        _id: serviceProvider._id,
+        serviceProviderTokenVersion:
+          serviceProvider.serviceProviderTokenVersion,
       },
-      process.env.CONSUMER_SECRET_TOKEN
+      process.env.SERVICE_PROVIDER_SECRET_TOKEN
     );
     const options = {
       httpOnly: true,
       secure: true,
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
-    res.cookie("consumerToken", token, options);
+    res.cookie("serviceProviderToken", token, options);
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Email verification successful",
@@ -96,14 +103,16 @@ exports.verifyEmail = async (req, res) => {
 };
 exports.avatarAndPhoneNumber = async (req, res) => {
   try {
-    const consumer = await consumerModel.findById({ _id: req.consumer._id });
-    if (!consumer) {
+    const serviceProvider = await serviceProviderModel.findById({
+      _id: req.serviceProvider._id,
+    });
+    if (!serviceProvider) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
-        message: "Consumer not found in database with id '" + id + "'",
+        message: "Service provider not found in database with id '" + id + "'",
       });
     }
-    const { consumerPhoneNumber } = req.body;
+    const { serviceProviderPhoneNumber } = req.body;
     if (!req.file) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
@@ -111,13 +120,13 @@ exports.avatarAndPhoneNumber = async (req, res) => {
       });
     }
     const upload = await cloudinary.v2.uploader.upload(fileUri(req.file));
-    consumer.consumerPhoneNumber = consumerPhoneNumber;
-    consumer.consumerAvatar = upload.secure_url;
-    await consumer.save();
+    serviceProvider.serviceProviderPhoneNumber = serviceProviderPhoneNumber;
+    serviceProvider.serviceProviderAvatar = upload.secure_url;
+    await serviceProvider.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message:
-        "Consumer details(phone number and profile avatar) is updated successfully",
+        "Service provider details(phone number and profile avatar) is updated successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -128,13 +137,15 @@ exports.avatarAndPhoneNumber = async (req, res) => {
 };
 exports.addAddress = async (req, res) => {
   try {
-    const { consumerAddress } = req.body;
-    const consumer = await consumerModel.findById({ _id: req.consumer._id });
-    consumer.consumerAddress = consumerAddress;
-    await consumer.save();
+    const { serviceProviderAddress } = req.body;
+    const serviceProvider = await serviceProviderModel.findById({
+      _id: req.serviceProvider._id,
+    });
+    serviceProvider.serviceProviderAddress = serviceProviderAddress;
+    await serviceProvider.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      message: "Consumer address added successfully",
+      message: "Service provider address added successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -145,32 +156,34 @@ exports.addAddress = async (req, res) => {
 };
 exports.signIn = async (req, res) => {
   try {
-    const { consumerEmail, consumerPassword } = req.body;
-    if (!consumerEmail || !consumerPassword) {
+    const { serviceProviderEmail, serviceProviderPassword } = req.body;
+    if (!serviceProviderEmail || !serviceProviderPassword) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Email and password are required",
       });
     }
-    const consumer = await consumerModel
-      .findOne({ consumerEmail: consumerEmail.toLowerCase() })
-      .select("+consumerPassword");
-    if (!consumer) {
+    const serviceProvider = await serviceProviderModel
+      .findOne({ serviceProviderEmail: serviceProviderEmail.toLowerCase() })
+      .select("+serviceProviderPassword");
+    if (!serviceProvider) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
         message:
-          "Consumer not found in database with email '" + consumerEmail + "'",
+          "Service provider not found in database with email '" +
+          serviceProviderEmail +
+          "'",
       });
     }
-    if (!consumer.isEmailVerified) {
+    if (!serviceProvider.isEmailVerified) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Please verify your email before signing in",
       });
     }
     const isPasswordMatch = await bcrypt.compare(
-      consumerPassword,
-      consumer.consumerPassword
+      serviceProviderPassword,
+      serviceProvider.serviceProviderPassword
     );
     if (!isPasswordMatch) {
       return res.status(400).json({
@@ -180,20 +193,21 @@ exports.signIn = async (req, res) => {
     }
     const token = await jwt?.sign(
       {
-        _id: consumer._id,
-        consumerTokenVersion: consumer.consumerTokenVersion,
+        _id: serviceProvider._id,
+        serviceProviderTokenVersion:
+          serviceProvider.serviceProviderTokenVersion,
       },
-      process.env.CONSUMER_SECRET_TOKEN
+      process.env.SERVICE_PROVIDER_SECRET_TOKEN
     );
     const options = {
       httpOnly: true,
       secure: true,
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
-    res.cookie("consumerToken", token, options);
+    res.cookie("serviceProviderToken", token, options);
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      message: "Consumer signed in successfully",
+      message: "Service provider signed in successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -202,12 +216,12 @@ exports.signIn = async (req, res) => {
     });
   }
 };
-exports.logout = async (req, res) => {
+exports.signOut = async (req, res) => {
   try {
-    res.clearCookie("consumerToken");
+    res.clearCookie("serviceProviderToken");
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      message: "Consumer logged out successfully",
+      message: "Service provider signed out successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -216,11 +230,11 @@ exports.logout = async (req, res) => {
     });
   }
 };
-exports.loadCurrentConsumer = async (req, res) => {
+exports.loadCurrentServiceProvider = async (req, res) => {
   try {
     res.status(200).json({
       statusCode: STATUS_CODES[200],
-      consumer: req.consumer,
+      serviceProvider: req.serviceProvider,
     });
   } catch (error) {
     return res.status(500).json({
@@ -231,26 +245,28 @@ exports.loadCurrentConsumer = async (req, res) => {
 };
 exports.sendResetPasswordLink = async (req, res) => {
   try {
-    const { consumerEmail } = req.body;
-    const consumer = await consumerModel.findOne({
-      consumerEmail: consumerEmail.toLowerCase(),
+    const { serviceProviderEmail } = req.body;
+    const serviceProvider = await serviceProviderModel.findOne({
+      serviceProviderEmail: serviceProviderEmail.toLowerCase(),
     });
-    if (!consumer) {
+    if (!serviceProvider) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
         message:
-          "Consumer not found in database with email '" + consumerEmail + "'",
+          "Service provider not found in database with email '" +
+          serviceProviderEmail +
+          "'",
       });
     }
     const token = jwt.sign(
-      { _id: consumer._id },
+      { _id: serviceProvider._id },
       process.env.FORGOT_PASSWORD_SECRET_TOKEN,
       { expiresIn: "1h" }
     );
 
     const clientUrl =
-      process.env.CLIENT_URL + "/consumer-reset-password" + `/${token}`;
-    sendPasswordResetEmail(consumer.consumerEmail, clientUrl);
+      process.env.CLIENT_URL + "/service-provider-reset-password" + `/${token}`;
+    sendPasswordResetEmail(serviceProvider.serviceProviderEmail, clientUrl);
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Reset password link has been sent to your registered email",
@@ -282,15 +298,16 @@ exports.resetPassword = async (req, res) => {
       });
     }
     const { newPassword } = req.body;
-    const consumer = await consumerModel.findByIdAndUpdate(
+    const serviceProvider = await serviceProviderModel.findByIdAndUpdate(
       { _id: decodedToken._id },
       {
-        consumerPassword: await bcrypt.hash(newPassword, 10),
+        serviceProviderPassword: await bcrypt.hash(newPassword, 10),
       },
       { new: true }
     );
-    consumer.consumerTokenVersion = consumer.consumerTokenVersion + 1;
-    await consumer.save();
+    serviceProvider.serviceProviderTokenVersion =
+      serviceProvider.serviceProviderTokenVersion + 1;
+    await serviceProvider.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Password changed successful",
