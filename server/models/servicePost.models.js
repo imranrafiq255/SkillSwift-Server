@@ -29,7 +29,6 @@ const servicePostSchema = mongoose.Schema(
         rating: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Rating",
-          required: [true, "Rating id is required"],
         },
       },
     ],

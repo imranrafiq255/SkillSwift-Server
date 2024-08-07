@@ -5,6 +5,7 @@ const adminModel = require("../models/admin.models");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { sendPasswordResetEmail } = require("../config/email.config");
+const serviceModel = require("../models/service.models");
 exports.signUp = async (req, res) => {
   try {
     const { adminFullName, adminEmail, adminPassword, adminPhoneNumber } =
@@ -176,6 +177,88 @@ exports.signOut = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Admin signed out successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.addService = async (req, res) => {
+  try {
+    const { serviceName, serviceDescription } = req.body;
+    const newService = await new serviceModel({
+      serviceName,
+      serviceDescription,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: `${newService.serviceName} added successfully`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.deleteService = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedService = await serviceModel.findByIdAndDelete(id);
+    if (!deletedService) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service not found with id " + id,
+      });
+    }
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: `${deletedService.serviceName} deleted successfully`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAllServices = async (req, res) => {
+  try {
+    const services = await serviceModel.find({});
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      services,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.updateService = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { serviceName, serviceDescription } = req.body;
+    const updatedService = await serviceModel.findByIdAndUpdate(
+      id,
+      {
+        serviceName,
+        serviceDescription,
+      },
+      { new: true }
+    );
+    if (!updatedService) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service not found with id " + id,
+      });
+    }
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: `${updatedService.serviceName} updated successfully`,
     });
   } catch (error) {
     return res.status(500).json({

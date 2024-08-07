@@ -19,18 +19,10 @@ const serviceOrderSchema = mongoose.Schema(
     },
     orderDeliverySchedule: {
       type: String,
-      required: [true, "Order delivery schedule is required"],
     },
     orderStatus: {
       type: String,
-      enum: [
-        "pending",
-        "accepted",
-        "rejected",
-        "in_progress",
-        "completed",
-        "cancelled",
-      ],
+      enum: ["pending", "accepted", "rejected", "completed", "cancelled"],
       default: "pending",
     },
   },

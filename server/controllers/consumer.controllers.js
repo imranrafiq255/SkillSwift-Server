@@ -6,8 +6,12 @@ const fileUri = require("../config/fileUri.config");
 const {
   sendConfirmEmail,
   sendPasswordResetEmail,
+  sendOrderEmail,
 } = require("../config/email.config");
 const bcrypt = require("bcrypt");
+const serviceOrderModel = require("../models/serviceOrder.models");
+const notificationModel = require("../models/notification.models");
+const serviceProviderModel = require("../models/serviceProvider.models");
 exports.signUp = async (req, res) => {
   try {
     const { consumerFullName, consumerEmail, consumerPassword } = req.body;
@@ -294,6 +298,141 @@ exports.resetPassword = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Password changed successful",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.orderService = async (req, res) => {
+  try {
+    const { serviceProvider, servicePost } = req.body;
+    const existedOrder = await serviceOrderModel.findOne({
+      servicePost,
+      serviceProvider,
+      serviceOrderBy: req.consumer._id,
+    });
+    const service_provider = await serviceProviderModel.findOne({
+      _id: serviceProvider,
+    });
+    if (!service_provider) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service provider not found",
+      });
+    }
+    if (existedOrder) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "You have already ordered this service",
+      });
+    }
+    let order = await new serviceOrderModel({
+      serviceOrderBy: req.consumer._id,
+      serviceProvider,
+      servicePost,
+    }).save();
+    order = await serviceOrderModel
+      .findOne({ _id: order._id })
+      .populate("servicePost");
+    sendOrderEmail(
+      service_provider.serviceProviderEmail,
+      "Order Information",
+      {
+        orderToName: service_provider.serviceProviderFullName,
+        _id: order._id,
+        servicePostMessage: order.servicePost.servicePostMessage,
+        orderByName: req.consumer.consumerFullName,
+      },
+      "Your order has been placed please see details below: ",
+      "Ordered By"
+    );
+    await new notificationModel({
+      notificationMessage: `Order #${order._id} has been cancelled by ${req.consumer.consumerFullName}`,
+      notificationSendBy: req.consumer._id,
+      notificationReceivedBy: order.serviceProvider,
+      notificationType: order._id,
+    }).save();
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Your order placed successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.rejectOrder = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const order = await serviceOrderModel.findOne({
+      _id: id,
+      serviceOrderBy: req.consumer._id,
+    });
+    if (!order) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    if (order.orderStatus !== "pending") {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Cannot reject an order that is not pending",
+      });
+    }
+    const rejectedOrder = await serviceOrderModel.findByIdAndDelete({
+      _id: id,
+      serviceOrderBy: req.consumer._id,
+    });
+    if (!rejectedOrder) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    const service_provider = await serviceProviderModel.findOne({
+      _id: rejectedOrder.serviceProvider,
+    });
+    if (!service_provider) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service provider not found",
+      });
+    }
+    // send email to service provider
+    sendOrderEmail(
+      service_provider.serviceProviderEmail,
+      "Order Information",
+      {
+        orderToName: service_provider.serviceProviderFullName,
+        _id: order._id,
+        servicePostMessage: order.servicePost.servicePostMessage,
+        orderByName: req.consumer.consumerFullName,
+      },
+      "Your order has been rejected please see details below: ",
+      "Rejected By"
+    );
+    await new notificationModel({
+      notificationMessage: `Order #${rejectedOrder._id} has been rejected by ${req.consumer.serviceProviderFullName}`,
+      notificationSendBy: req.consumer._id,
+      notificationReceivedBy: rejectedOrder.serviceProvider,
+      notificationType: rejectedOrder._id,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You rejected the order successfully",
     });
   } catch (error) {
     return res.status(500).json({

@@ -4,10 +4,14 @@ const jwt = require("jsonwebtoken");
 const {
   sendConfirmEmail,
   sendPasswordResetEmail,
+  sendOrderEmail,
 } = require("../config/email.config");
 const fileUri = require("../config/fileUri.config");
 const cloudinary = require("cloudinary");
 const bcrypt = require("bcrypt");
+const servicePostModel = require("../models/servicePost.models");
+const serviceOrderModel = require("../models/serviceOrder.models");
+const notificationModel = require("../models/notification.models");
 exports.signUp = async (req, res) => {
   try {
     const {
@@ -311,6 +315,388 @@ exports.resetPassword = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Password changed successful",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.setWorkingHours = async (req, res) => {
+  try {
+    const { serviceProviderWorkingHours } = req.body;
+    const isDayExisted = await serviceProviderModel.findOne({
+      "serviceProviderWorkingHours.dayOfWeek":
+        serviceProviderWorkingHours.dayOfWeek,
+    });
+    if (isDayExisted) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Working hours for this day already exists",
+      });
+    }
+    await serviceProviderModel.findByIdAndUpdate(
+      { _id: req.serviceProvider._id },
+      { serviceProviderWorkingHours },
+      { new: true }
+    );
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service provider working hours updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.addCNICDetails = async (req, res) => {
+  try {
+    const { serviceProviderCNICNumber } = req.body;
+    const serviceProvider = await serviceProviderModel.findById({
+      _id: req.serviceProvider._id,
+    });
+    if (!req.files || req.files.length !== 2) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Exactly two images are required!",
+      });
+    }
+    let serviceProviderImages = [];
+    await Promise.all(
+      req.files.map(async (file) => {
+        let result = await cloudinary.v2.uploader.upload(fileUri(file));
+        serviceProviderImages.push(result.secure_url);
+      })
+    );
+    serviceProvider.serviceProviderCNICImages = serviceProviderImages;
+    serviceProvider.serviceProviderCNICNumber = serviceProviderCNICNumber;
+    await serviceProvider.save();
+    return res.status(200).json({
+      statusCode: 200,
+      message:
+        "Service provider details (CNIC Number and CNIC images) are updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.addListedServices = async (req, res) => {
+  try {
+    const { serviceProviderListedServices } = req.body;
+    await serviceProviderModel.findByIdAndUpdate(
+      { _id: req.serviceProvider._id },
+      { serviceProviderListedServices },
+      { new: true }
+    );
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service provider listed services updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.addServicePost = async (req, res) => {
+  try {
+    const { service, servicePostMessage, servicePostPrice } = req.body;
+    if (!req.file) {
+      return res.status(400).json({
+        statusCode: 400,
+        message: "Service post image is required!",
+      });
+    }
+    const upload = await cloudinary.v2.uploader.upload(fileUri(req.file));
+    await new servicePostModel({
+      service,
+      servicePostMessage,
+      servicePostPrice,
+      serviceProvider: req.serviceProvider._id,
+      servicePostImage: upload.secure_url,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service post created successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.deleteServicePost = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const deletedServicePost = await servicePostModel.findByIdAndDelete({
+      _id: id,
+      serviceProvider: req.serviceProvider._id,
+    });
+    if (!deletedServicePost) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No post found with given id" + id,
+      });
+    }
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service post deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAllServiceProviderPosts = async (req, res) => {
+  try {
+    const servicePosts = await servicePostModel.find({
+      serviceProvider: req.serviceProvider._id,
+    });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      servicePosts,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.acceptOrder = async (req, res) => {
+  try {
+    const { orderDeliverySchedule } = req.body;
+    if (!orderDeliverySchedule) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Order delivery schedule is required",
+      });
+    }
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const order = await serviceOrderModel.findByIdAndUpdate(
+      { _id: id, serviceProvider: req.serviceProvider._id },
+      { orderDeliverySchedule, orderStatus: "accepted" },
+      { new: true }
+    );
+    sendOrderEmail(
+      order.serviceOrderBy.consumerEmail,
+      "Order Information",
+      {
+        orderToName: order?.serviceOrderBy.consumerFullName,
+        orderByName: req.serviceProvider.serviceProviderFullName,
+        servicePostMessage: order.servicePost.servicePostMessage,
+        _id: order._id,
+      },
+      "This order has been accepted and will be delivered on " +
+        orderDeliverySchedule,
+      "Order Accepted By"
+    );
+    await new notificationModel({
+      notificationMessage: `Order #${order._id} has been accepted by ${req.serviceProvider.serviceProviderFullName}`,
+      notificationSendBy: req.serviceProvider._id,
+      notificationReceivedBy: order.serviceOrderBy,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You accepted the order successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.rejectOrder = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const order = await serviceOrderModel.findOne({
+      _id: id,
+      serviceProvider: req.serviceProvider._id,
+    });
+    if (!order) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    if (order.orderStatus !== "pending") {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Cannot reject an order that is not pending",
+      });
+    }
+    const rejectedOrder = await serviceOrderModel.findByIdAndDelete({
+      _id: id,
+    });
+    if (!rejectedOrder) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    await new notificationModel({
+      notificationMessage: `Order #${rejectedOrder._id} has been rejected by ${req.serviceProvider.serviceProviderFullName}`,
+      notificationSendBy: req.serviceProvider._id,
+      notificationReceivedBy: rejectedOrder.serviceOrderBy,
+      notificationType: rejectedOrder._id,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You rejected the order successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.cancelOrder = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const order = await serviceOrderModel.findOne({
+      _id: id,
+      serviceProvider: req.serviceProvider._id,
+    });
+    if (!order) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    if (order.orderStatus !== "accepted") {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Cannot cancel an order that is not accepted",
+      });
+    }
+    const cancelledOrder = await serviceOrderModel
+      .findByIdAndDelete({
+        _id: id,
+      })
+      .populate("serviceOrderBy")
+      .populate("servicePost");
+    if (!cancelledOrder) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    sendOrderEmail(
+      cancelledOrder.serviceOrderBy.consumerEmail,
+      "Order Information",
+      {
+        orderToName: cancelledOrder?.serviceOrderBy.consumerFullName,
+        orderByName: req.serviceProvider.serviceProviderFullName,
+        servicePostMessage: cancelledOrder.servicePost.servicePostMessage,
+        _id: cancelledOrder._id,
+      },
+      "This order has been cancelled with details below:",
+      "Order Cancelled By"
+    );
+    await new notificationModel({
+      notificationMessage: `Order #${cancelledOrder._id} has been cancelled by ${req.serviceProvider.serviceProviderFullName}`,
+      notificationSendBy: req.serviceProvider._id,
+      notificationReceivedBy: cancelledOrder.serviceOrderBy,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You cancelled the order successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadOrders = async (req, res) => {
+  try {
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      orders: await serviceOrderModel.find({
+        serviceProvider: req.serviceProvider._id,
+      }),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAllNewNotifications = async (req, res) => {
+  try {
+    const notifications = await notificationModel
+      .find({
+        notificationReceivedBy: req.serviceProvider._id,
+        notificationRead: false,
+      })
+      .populate("notificationReceivedBy")
+      .populate("notificationSendBy");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      notifications,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.readNotification = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    await notificationModel.findByIdAndUpdate(
+      { _id: id, notificationReceivedBy: req.serviceProvider._id },
+      { notificationRead: true },
+      { new: true }
+    );
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You have read the notification successfully",
     });
   } catch (error) {
     return res.status(500).json({

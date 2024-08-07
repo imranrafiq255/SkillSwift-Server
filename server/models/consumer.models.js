@@ -46,11 +46,11 @@ const consumerSchema = mongoose.Schema(
       default: false,
     },
     consumerAddress: String,
-    consumerBookedServices: [
+    consumerOrders: [
       {
         service: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Service",
+          ref: "ServiceOrder",
         },
       },
     ],

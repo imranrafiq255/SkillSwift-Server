@@ -9,6 +9,8 @@ const {
   loadCurrentConsumer,
   resetPassword,
   sendResetPasswordLink,
+  orderService,
+  rejectOrder,
 } = require("../controllers/consumer.controllers");
 const isConsumerAuthenticated = require("../middlewares/isConsumerAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -30,4 +32,6 @@ Router.route("/load-current-consumer").get(
 );
 Router.route("/send-reset-password-email").post(sendResetPasswordLink);
 Router.route("/reset-password/:token").put(resetPassword);
+Router.route("/order-service").post(isConsumerAuthenticated, orderService);
+Router.route("/reject-order/:id").delete(isConsumerAuthenticated, rejectOrder);
 module.exports = Router;

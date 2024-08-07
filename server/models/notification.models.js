@@ -16,10 +16,9 @@ const notificationSchema = mongoose.Schema(
       ref: "Consumer" || "ServiceProvider" || "Admin",
       required: [true, "Notification received by is required"],
     },
-    notificationType: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Dispute" || "Refund" || "ServiceOrder" || "Message",
-      required: [true, "Notification type is required"],
+    notificationRead: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

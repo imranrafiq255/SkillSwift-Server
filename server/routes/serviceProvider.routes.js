@@ -9,9 +9,22 @@ const {
   sendResetPasswordLink,
   resetPassword,
   loadCurrentServiceProvider,
+  setWorkingHours,
+  addCNICDetails,
+  addListedServices,
+  addServicePost,
+  deleteServicePost,
+  loadAllServiceProviderPosts,
+  acceptOrder,
+  rejectOrder,
+  cancelOrder,
+  loadOrders,
+  loadAllNewNotifications,
+  readNotification,
 } = require("../controllers/serviceProvider.controllers");
 const isServiceProviderAuthenticated = require("../middlewares/isServiceProviderAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
+const twoImagesUpload = require("../middlewares/twoImagesUploda.middlewares");
 
 const Router = express.Router();
 
@@ -30,5 +43,52 @@ Router.route("/reset-password/:token").post(resetPassword);
 Router.route("/load-current-service-provider").get(
   isServiceProviderAuthenticated,
   loadCurrentServiceProvider
+);
+Router.route("/set-working-hours").post(
+  isServiceProviderAuthenticated,
+  setWorkingHours
+);
+Router.route("/add-cnic-details").post(
+  isServiceProviderAuthenticated,
+  twoImagesUpload("serviceProviderCNICImages"),
+  addCNICDetails
+);
+Router.route("/add-listed-services").post(
+  isServiceProviderAuthenticated,
+  addListedServices
+);
+Router.route("/add-service-post").post(
+  isServiceProviderAuthenticated,
+  singleImageUpload("servicePostImage"),
+  addServicePost
+);
+Router.route("/delete-service-post/:id").delete(
+  isServiceProviderAuthenticated,
+  deleteServicePost
+);
+Router.route("/load-all-service-provider-posts").get(
+  isServiceProviderAuthenticated,
+  loadAllServiceProviderPosts
+);
+Router.route("/accept-order/:id").post(
+  isServiceProviderAuthenticated,
+  acceptOrder
+);
+Router.route("/reject-order/:id").delete(
+  isServiceProviderAuthenticated,
+  rejectOrder
+);
+Router.route("/cancel-order/:id").delete(
+  isServiceProviderAuthenticated,
+  cancelOrder
+);
+Router.route("/load-orders").get(isServiceProviderAuthenticated, loadOrders);
+Router.route("/load-new-notifications").get(
+  isServiceProviderAuthenticated,
+  loadAllNewNotifications
+);
+Router.route("/read-notification/:id").get(
+  isServiceProviderAuthenticated,
+  readNotification
 );
 module.exports = Router;

@@ -57,6 +57,7 @@ const serviceProviderSchema = mongoose.Schema(
         },
         message: "CNIC number should be in the format 'xxxxx-xxxxxx-x'",
       },
+      unique: [true, "CNIC number should be unique"],
     },
     serviceProviderCNICImages: [String],
     serviceProviderListedServices: [
@@ -75,7 +76,13 @@ const serviceProviderSchema = mongoose.Schema(
         },
       },
     ],
-    serviceProviderWorkingHours: [String],
+    serviceProviderWorkingHours: [
+      {
+        dayOfWeek: String,
+        startTime: String,
+        endTime: String,
+      },
+    ],
     isAccountVerified: {
       type: Boolean,
       default: false,
@@ -93,6 +100,14 @@ const serviceProviderSchema = mongoose.Schema(
         notification: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Notification",
+        },
+      },
+    ],
+    serviceProviderOrders: [
+      {
+        serviceOrder: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "ServiceOrder",
         },
       },
     ],

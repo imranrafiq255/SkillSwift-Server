@@ -118,4 +118,65 @@ const sendConfirmEmail = async (email, confirmEmailLink) => {
   };
   await transporter.sendMail(mailOptions);
 };
-module.exports = { sendPasswordResetEmail, sendConfirmEmail };
+const sendOrderEmail = async (to, subject, order, message, orderAffector) => {
+  const mailOptions = {
+    from: process.env.EMAIL,
+    to: to,
+    subject: subject,
+    html: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+        }
+        .container {
+          width: 80%;
+          margin: 0 auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          box-shadow: 2px 2px 12px #aaa;
+        }
+        .header {
+          background-color: #4CAF50;
+          color: white;
+          padding: 10px;
+          text-align: center;
+        }
+        .content {
+          margin-top: 20px;
+        }
+        .footer {
+          margin-top: 20px;
+          text-align: center;
+          color: #777;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>SkillSwift</h1>
+        </div>
+        <div class="content">
+          <p>Dear ${order.orderToName},</p>
+          <p>${message}</p>
+          <ul>
+            <li>Order ID: ${order._id}</li>
+            <li style="font:bold;">Service: ${order.servicePostMessage}</li>
+            <li>${orderAffector}: ${order.orderByName}</li>
+          </ul>
+          <p>Please log in to your SkillSwift account to view and manage this order.</p>
+        </div>
+        <div class="footer">
+          <p>Regards,<br>SkillSwift Team</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `,
+  };
+  await transporter.sendMail(mailOptions);
+};
+module.exports = { sendPasswordResetEmail, sendConfirmEmail, sendOrderEmail };
