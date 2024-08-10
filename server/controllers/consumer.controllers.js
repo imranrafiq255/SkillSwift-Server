@@ -12,6 +12,10 @@ const bcrypt = require("bcrypt");
 const serviceOrderModel = require("../models/serviceOrder.models");
 const notificationModel = require("../models/notification.models");
 const serviceProviderModel = require("../models/serviceProvider.models");
+const disputeModel = require("../models/dispute.models");
+const ratingModel = require("../models/Rating.models");
+const servicePostModel = require("../models/servicePost.models");
+const refundModel = require("../models/refund.models");
 exports.signUp = async (req, res) => {
   try {
     const { consumerFullName, consumerEmail, consumerPassword } = req.body;
@@ -411,7 +415,6 @@ exports.rejectOrder = async (req, res) => {
         message: "Service provider not found",
       });
     }
-    // send email to service provider
     sendOrderEmail(
       service_provider.serviceProviderEmail,
       "Order Information",
@@ -433,6 +436,231 @@ exports.rejectOrder = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "You rejected the order successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadNewNotifications = async (req, res) => {
+  try {
+    const notifications = await notificationModel.find({
+      notificationReceivedBy: req.consumer._id,
+      notificationRead: false,
+    });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      notifications,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.readNotification = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const notification = await notificationModel.findByIdAndUpdate(
+      { _id: id, notificationReceivedBy: req.consumer._id },
+      { notificationRead: true },
+      { new: true }
+    );
+    if (!notification) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No notification found with given id" + id,
+      });
+    }
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Notification read successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS,
+      message: error.message,
+    });
+  }
+};
+exports.fileDispute = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const serviceProvider = await serviceProviderModel.findOne({
+      _id: id,
+    });
+    if (!serviceProvider) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service provider not found",
+      });
+    }
+    const { disputeTitle, disputeDetails } = req.body;
+    await new disputeModel({
+      disputeTitle,
+      disputeDetails,
+      disputeFiledBy: req.consumer._id,
+      disputeFiledAgainst: id,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message:
+        "Dispute is filed against " +
+        serviceProvider.serviceProviderFullName +
+        " succesfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadDisputes = async (req, res) => {
+  try {
+    const disputes = await disputeModel.find({
+      disputeFiledBy: req.consumer._id,
+    });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      disputes,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.deleteDispute = async (req, res) => {
+  try {
+    const id = req.consumer._id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const dispute = await disputeModel.findOneAndDelete({
+      _id: id,
+      disputeFiledBy: req.consumer._id,
+    });
+    if (!dispute) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No dispute found with given id" + id,
+      });
+    }
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Dispute deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.addRating = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id paramter is required",
+      });
+    }
+    const servicePost = await servicePostModel.findOne({ _id: id });
+    if (!servicePost) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service post not found with given id",
+      });
+    }
+    const isRatingExisted = await ratingModel.findOne({
+      ratedBy: req.consumer._id,
+      servicePost: id,
+    });
+    if (isRatingExisted) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "You have already rated this service post",
+      });
+    }
+
+    const { ratingStars } = req.body;
+    const rating = await new ratingModel({
+      servicePost: id,
+      ratingStars,
+      ratedBy: req.consumer._id,
+    }).save();
+    servicePost.servicePostRatings.push({ rating: rating._id });
+    await servicePost.save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You rated service post successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.submitRefundRequest = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const serviceProvider = await serviceProviderModel.findOne({ _id: id });
+    if (!serviceProvider) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service provider does not exist with id '" + id + "'",
+      });
+    }
+    const isRefundRequestExisted = await refundModel.findOne({
+      refundRequestedBy: req.consumer._id,
+      refundRequestedAgainst: id,
+    });
+    if (isRefundRequestExisted) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message:
+          "You have already submitted a refund request against this service provider",
+      });
+    }
+    const { refundAmount, refundDetails } = req.body;
+    await new refundModel({
+      refundRequestedBy: req.consumer._id,
+      refundRequestedAgainst: id,
+      refundAmount,
+      refundDetails,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message:
+        "Refund request submitted successfully, please wait for approval or rejection",
     });
   } catch (error) {
     return res.status(500).json({

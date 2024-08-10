@@ -26,8 +26,11 @@ const disputeSchema = mongoose.Schema(
     },
     disputeStatus: {
       type: String,
-      enum: ["pending", "resolved", "rejected"],
+      enum: ["pending", "resolved"],
       default: "pending",
+    },
+    disputeResolution: {
+      type: String,
     },
   },
   { timestamp: true }

@@ -41,34 +41,10 @@ const adminSchema = mongoose.Schema(
           "phone number should be a valid 12-digit number (+92xxxxxxxxxx)",
       },
     },
-    disputes: [
-      {
-        dispute: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Dispute",
-        },
-      },
-    ],
-    adminNotifications: [
-      {
-        notification: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Notification",
-        },
-      },
-    ],
     adminTokenVersion: {
       type: Number,
       default: 0,
     },
-    refunds: [
-      {
-        refund: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Refund",
-        },
-      },
-    ],
   },
   { timestamps: true }
 );

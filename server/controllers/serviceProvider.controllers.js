@@ -567,7 +567,6 @@ exports.rejectOrder = async (req, res) => {
       notificationMessage: `Order #${rejectedOrder._id} has been rejected by ${req.serviceProvider.serviceProviderFullName}`,
       notificationSendBy: req.serviceProvider._id,
       notificationReceivedBy: rejectedOrder.serviceOrderBy,
-      notificationType: rejectedOrder._id,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -647,11 +646,12 @@ exports.cancelOrder = async (req, res) => {
 };
 exports.loadOrders = async (req, res) => {
   try {
+    const orders = await serviceOrderModel.find({
+      serviceProvider: req.serviceProvider._id,
+    });
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      orders: await serviceOrderModel.find({
-        serviceProvider: req.serviceProvider._id,
-      }),
+      orders,
     });
   } catch (error) {
     return res.status(500).json({

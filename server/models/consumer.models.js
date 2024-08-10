@@ -54,43 +54,11 @@ const consumerSchema = mongoose.Schema(
         },
       },
     ],
-    consumerFiledDisputes: [
-      {
-        dispute: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Dispute",
-        },
-      },
-    ],
-    consumerRatedServicePosts: [
-      {
-        servicePost: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "ServicePost",
-        },
-      },
-    ],
     consumerFavoriteServicePosts: [
       {
         servicePost: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "ServicePost",
-        },
-      },
-    ],
-    consumerMessages: [
-      {
-        message: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Message",
-        },
-      },
-    ],
-    consumerNotifications: [
-      {
-        notification: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Notification",
         },
       },
     ],

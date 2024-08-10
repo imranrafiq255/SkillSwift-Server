@@ -82,6 +82,7 @@ Router.route("/cancel-order/:id").delete(
   isServiceProviderAuthenticated,
   cancelOrder
 );
+
 Router.route("/load-orders").get(isServiceProviderAuthenticated, loadOrders);
 Router.route("/load-new-notifications").get(
   isServiceProviderAuthenticated,

@@ -68,14 +68,6 @@ const serviceProviderSchema = mongoose.Schema(
         },
       },
     ],
-    serviceProviderPostedServices: [
-      {
-        service: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "ServicePost",
-        },
-      },
-    ],
     serviceProviderWorkingHours: [
       {
         dayOfWeek: String,
@@ -87,30 +79,6 @@ const serviceProviderSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    serviceProviderMessages: [
-      {
-        message: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Message",
-        },
-      },
-    ],
-    serviceProviderNotifications: [
-      {
-        notification: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Notification",
-        },
-      },
-    ],
-    serviceProviderOrders: [
-      {
-        serviceOrder: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "ServiceOrder",
-        },
-      },
-    ],
   },
   { timestamps: true }
 );

@@ -16,6 +16,10 @@ const refundSchema = mongoose.Schema(
       type: Number,
       required: [true, "refund amount is required"],
     },
+    refundDetails: {
+      type: String,
+      required: [true, "Refund details is required"],
+    },
     refundAmountStatus: {
       type: String,
       enum: ["pending", "approved", "rejected"],
