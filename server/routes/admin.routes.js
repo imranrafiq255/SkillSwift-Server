@@ -16,6 +16,7 @@ const {
   rejectRefundRequest,
   loadDisputes,
   loadRefunds,
+  verifyServiceProviderAccount,
 } = require("../controllers/admin.controllers");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
 const isAdminAuthenticated = require("../middlewares/isAdminAuthenticated.middlewares");
@@ -44,4 +45,8 @@ Router.route("/reject-refund-request/:id").get(
 );
 Router.route("/load-disputes").get(isAdminAuthenticated, loadDisputes);
 Router.route("/load-refunds").get(isAdminAuthenticated, loadRefunds);
+Router.route("/verify-service-provider-account/:id").get(
+  isAdminAuthenticated,
+  verifyServiceProviderAccount
+);
 module.exports = Router;

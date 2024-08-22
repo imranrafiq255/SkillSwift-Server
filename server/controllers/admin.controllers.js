@@ -8,11 +8,13 @@ const {
   sendPasswordResetEmail,
   sendDisputeEmail,
   sendRefundEmail,
+  sendAccountVerificationEmail,
 } = require("../config/email.config");
 const serviceModel = require("../models/service.models");
 const disputeModel = require("../models/dispute.models");
 const notificationModel = require("../models/notification.models");
 const refundModel = require("../models/refund.models");
+const serviceProviderModel = require("../models/serviceProvider.models");
 exports.signUp = async (req, res) => {
   try {
     const { adminFullName, adminEmail, adminPassword, adminPhoneNumber } =
@@ -483,6 +485,41 @@ exports.loadRefunds = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       refunds: await refundModel.find(),
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.verifyServiceProviderAccount = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Service provider id is required",
+      });
+    }
+    const serviceProviderExisted = await serviceProviderModel.findById(id);
+    if (!serviceProviderExisted) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service provider not found with id " + id,
+      });
+    }
+    serviceProviderExisted.isAccountVerified = true;
+    await serviceProviderExisted.save();
+    sendAccountVerificationEmail(
+      serviceProviderExisted.serviceProviderEmail,
+      serviceProviderExisted.serviceProviderFullName,
+      "Account Verification Information",
+      "Your account has been verified. You can now use the platform."
+    );
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service provider account has been verified",
     });
   } catch (error) {
     return res.status(500).json({

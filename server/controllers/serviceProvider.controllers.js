@@ -291,30 +291,47 @@ exports.resetPassword = async (req, res) => {
         message: "Token is missing",
       });
     }
-    const decodedToken = jwt.verify(
-      token,
-      process.env.FORGOT_PASSWORD_SECRET_TOKEN
-    );
-    if (!decodedToken) {
+
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(
+        token,
+        process.env.FORGOT_PASSWORD_SECRET_TOKEN
+      );
+    } catch (err) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
-        message: "Token is invalid",
+        message: "Token is invalid or expired",
       });
     }
-    const { newPassword } = req.body;
-    const serviceProvider = await serviceProviderModel.findByIdAndUpdate(
-      { _id: decodedToken._id },
-      {
-        serviceProviderPassword: await bcrypt.hash(newPassword, 10),
-      },
-      { new: true }
-    );
-    serviceProvider.serviceProviderTokenVersion =
-      serviceProvider.serviceProviderTokenVersion + 1;
+
+    let { serviceProviderPassword } = req.body;
+    if (!serviceProviderPassword) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Password is required",
+      });
+    }
+
+    const serviceProvider = await serviceProviderModel
+      .findOne({
+        _id: decodedToken._id,
+      })
+      .select("+serviceProviderPassword");
+
+    if (!serviceProvider) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service provider not found",
+      });
+    }
+    serviceProvider.serviceProviderTokenVersion += 1;
+    serviceProvider.serviceProviderPassword = serviceProviderPassword;
     await serviceProvider.save();
+
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      message: "Password changed successful",
+      message: "Password changed successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -323,6 +340,7 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
+
 exports.setWorkingHours = async (req, res) => {
   try {
     const { serviceProviderWorkingHours } = req.body;

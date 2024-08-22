@@ -154,15 +154,18 @@ exports.addAddress = async (req, res) => {
 exports.signIn = async (req, res) => {
   try {
     const { consumerEmail, consumerPassword } = req.body;
+
     if (!consumerEmail || !consumerPassword) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Email and password are required",
       });
     }
+
     const consumer = await consumerModel
       .findOne({ consumerEmail: consumerEmail.toLowerCase() })
       .select("+consumerPassword");
+
     if (!consumer) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
@@ -170,35 +173,42 @@ exports.signIn = async (req, res) => {
           "Consumer not found in database with email '" + consumerEmail + "'",
       });
     }
+
     if (!consumer.isEmailVerified) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Please verify your email before signing in",
       });
     }
+
     const isPasswordMatch = await bcrypt.compare(
       consumerPassword,
       consumer.consumerPassword
     );
+
     if (!isPasswordMatch) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Invalid password",
       });
     }
-    const token = await jwt?.sign(
+
+    const token = await jwt.sign(
       {
         _id: consumer._id,
         consumerTokenVersion: consumer.consumerTokenVersion,
       },
       process.env.CONSUMER_SECRET_TOKEN
     );
+
     const options = {
       httpOnly: true,
       secure: true,
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
+
     res.cookie("consumerToken", token, options);
+
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Consumer signed in successfully",
@@ -273,13 +283,14 @@ exports.sendResetPasswordLink = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const token = req.params.token;
+
     if (!token) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Token is missing",
       });
     }
-    const decodedToken = jwt.verify(
+    const decodedToken = await jwt.verify(
       token,
       process.env.FORGOT_PASSWORD_SECRET_TOKEN
     );
@@ -289,11 +300,17 @@ exports.resetPassword = async (req, res) => {
         message: "Token is invalid",
       });
     }
-    const { newPassword } = req.body;
+    const { consumerPassword } = req.body;
+    if (!consumerPassword) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Password is required",
+      });
+    }
     const consumer = await consumerModel.findByIdAndUpdate(
       { _id: decodedToken._id },
       {
-        consumerPassword: await bcrypt.hash(newPassword, 10),
+        consumerPassword: await bcrypt.hash(consumerPassword, 10),
       },
       { new: true }
     );

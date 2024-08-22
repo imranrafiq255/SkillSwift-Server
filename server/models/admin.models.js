@@ -23,9 +23,19 @@ const adminSchema = mongoose.Schema(
       minlength: [8, "admin password should be greater than or equal to 8"],
       validate: {
         validator: function (v) {
-          return /^[a-zA-Z0-9]+$/.test(v);
+          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(v);
         },
-        message: "password should contain only letters and numbers",
+        message: (props) => {
+          if (!/(?=.*[a-z])/.test(props.value))
+            return "Password must contain at least one lowercase letter";
+          if (!/(?=.*[A-Z])/.test(props.value))
+            return "Password must contain at least one uppercase letter";
+          if (!/(?=.*\d)/.test(props.value))
+            return "Password must contain at least one number";
+          if (!/(?=.*[\W_])/.test(props.value))
+            return "Password must contain at least one special character";
+          return "Invalid password";
+        },
       },
       required: [true, "admin password is required"],
       select: false,

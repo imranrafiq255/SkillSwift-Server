@@ -1,36 +1,38 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+
 const serviceProviderSchema = mongoose.Schema(
   {
     serviceProviderFullName: {
       type: String,
-      required: [true, "serviceProvider full name is required"],
+      required: [true, "ServiceProvider full name is required"],
     },
     serviceProviderEmail: {
       type: String,
-      unique: [true, "serviceProvider email should be unique"],
+      unique: [true, "ServiceProvider email should be unique"],
       lowercase: true,
       validate: {
         validator: function (v) {
           return /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(v);
         },
-        message: "email is not valid",
+        message: "Email is not valid",
       },
-      required: [true, "serviceProvider email is required"],
+      required: [true, "ServiceProvider email is required"],
     },
     serviceProviderPassword: {
       type: String,
       minlength: [
         8,
-        "serviceProvider password should be greater than or equal to 8",
+        "ServiceProvider password should be greater than or equal to 8",
       ],
       validate: {
         validator: function (v) {
-          return /^[a-zA-Z0-9]+$/.test(v);
+          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(v);
         },
-        message: "Password should contain only letters and numbers",
+        message:
+          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character",
       },
-      required: [true, "serviceProvider password is required"],
+      required: [true, "ServiceProvider password is required"],
       select: false,
     },
     serviceProviderPhoneNumber: {
@@ -40,7 +42,7 @@ const serviceProviderSchema = mongoose.Schema(
           return /^[+]*\d{12}/.test(v);
         },
         message:
-          "phone number should be a valid 12-digit number (+92xxxxxxxxxx)",
+          "Phone number should be a valid 12-digit number (+92xxxxxxxxxx)",
       },
     },
     serviceProviderAvatar: String,
@@ -49,16 +51,16 @@ const serviceProviderSchema = mongoose.Schema(
       default: false,
     },
     serviceProviderAddress: String,
-    serviceProviderCNICNumber: {
-      type: String,
-      validate: {
-        validator: function (v) {
-          return /\d{5}-\d{7}-\d{1}/.test(v);
-        },
-        message: "CNIC number should be in the format 'xxxxx-xxxxxx-x'",
-      },
-      unique: [true, "CNIC number should be unique"],
-    },
+    // serviceProviderCNICNumber: {
+    //   type: String,
+    //   unique: [true, "CNIC number should be unique"],
+    //   validate: {
+    //     validator: function (v) {
+    //       return /^\d{13}$/.test(v); // Example: Validate that CNIC is a 13-digit number
+    //     },
+    //     message: "CNIC number should be a valid 13-digit number",
+    //   },
+    // },
     serviceProviderCNICImages: [String],
     serviceProviderListedServices: [
       {
@@ -95,6 +97,7 @@ serviceProviderSchema.pre("save", async function (next) {
     next(error);
   }
 });
+
 const serviceProviderModel = mongoose.model(
   "ServiceProvider",
   serviceProviderSchema
