@@ -73,8 +73,7 @@ const serviceProviderSchema = mongoose.Schema(
     serviceProviderWorkingHours: [
       {
         dayOfWeek: String,
-        startTime: String,
-        endTime: String,
+        time: String,
       },
     ],
     isAccountVerified: {

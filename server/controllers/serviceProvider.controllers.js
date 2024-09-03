@@ -12,6 +12,7 @@ const bcrypt = require("bcrypt");
 const servicePostModel = require("../models/servicePost.models");
 const serviceOrderModel = require("../models/serviceOrder.models");
 const notificationModel = require("../models/notification.models");
+const serviceModel = require("../models/service.models");
 exports.signUp = async (req, res) => {
   try {
     const {
@@ -24,7 +25,7 @@ exports.signUp = async (req, res) => {
       serviceProviderEmail,
       serviceProviderPassword,
     }).save();
-    const token = jwt.sign(
+    const token = await jwt.sign(
       {
         _id: newServiceProvider._id,
       },
@@ -116,7 +117,7 @@ exports.avatarAndPhoneNumber = async (req, res) => {
         message: "Service provider not found in database with id '" + id + "'",
       });
     }
-    const { serviceProviderPhoneNumber } = req.body;
+    const { serviceProviderPhoneNumber, serviceProviderAddress } = req.body;
     if (!req.file) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
@@ -126,6 +127,7 @@ exports.avatarAndPhoneNumber = async (req, res) => {
     const upload = await cloudinary.v2.uploader.upload(fileUri(req.file));
     serviceProvider.serviceProviderPhoneNumber = serviceProviderPhoneNumber;
     serviceProvider.serviceProviderAvatar = upload.secure_url;
+    serviceProvider.serviceProviderAddress = serviceProviderAddress;
     await serviceProvider.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -344,21 +346,25 @@ exports.resetPassword = async (req, res) => {
 exports.setWorkingHours = async (req, res) => {
   try {
     const { serviceProviderWorkingHours } = req.body;
+
     const isDayExisted = await serviceProviderModel.findOne({
       "serviceProviderWorkingHours.dayOfWeek":
         serviceProviderWorkingHours.dayOfWeek,
     });
+
     if (isDayExisted) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Working hours for this day already exists",
       });
     }
-    await serviceProviderModel.findByIdAndUpdate(
-      { _id: req.serviceProvider._id },
-      { serviceProviderWorkingHours },
-      { new: true }
+    const serviceProvider = await serviceProviderModel.findOne({
+      _id: req.serviceProvider._id,
+    });
+    serviceProvider.serviceProviderWorkingHours.push(
+      serviceProviderWorkingHours
     );
+    await serviceProvider.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Service provider working hours updated successfully",
@@ -372,7 +378,6 @@ exports.setWorkingHours = async (req, res) => {
 };
 exports.addCNICDetails = async (req, res) => {
   try {
-    const { serviceProviderCNICNumber } = req.body;
     const serviceProvider = await serviceProviderModel.findById({
       _id: req.serviceProvider._id,
     });
@@ -390,12 +395,10 @@ exports.addCNICDetails = async (req, res) => {
       })
     );
     serviceProvider.serviceProviderCNICImages = serviceProviderImages;
-    serviceProvider.serviceProviderCNICNumber = serviceProviderCNICNumber;
     await serviceProvider.save();
     return res.status(200).json({
       statusCode: 200,
-      message:
-        "Service provider details (CNIC Number and CNIC images) are updated successfully",
+      message: "Service provider CNIC images are updated successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -407,11 +410,35 @@ exports.addCNICDetails = async (req, res) => {
 exports.addListedServices = async (req, res) => {
   try {
     const { serviceProviderListedServices } = req.body;
+    const serviceProvider = await serviceProviderModel.findOne({
+      _id: req.serviceProvider._id,
+    });
+
+    const currentServices = serviceProvider.serviceProviderListedServices;
+
+    const duplicateServices = serviceProviderListedServices.filter(
+      (newService) =>
+        currentServices.some(
+          (existingService) =>
+            existingService.service.toString() === newService.service.toString()
+        )
+    );
+    if (duplicateServices.length > 0) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Please select unique services",
+      });
+    }
+    const updatedServices = [
+      ...currentServices,
+      ...serviceProviderListedServices,
+    ];
     await serviceProviderModel.findByIdAndUpdate(
       { _id: req.serviceProvider._id },
-      { serviceProviderListedServices },
+      { serviceProviderListedServices: updatedServices },
       { new: true }
     );
+
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Service provider listed services updated successfully",
@@ -423,6 +450,7 @@ exports.addListedServices = async (req, res) => {
     });
   }
 };
+
 exports.addServicePost = async (req, res) => {
   try {
     const { service, servicePostMessage, servicePostPrice } = req.body;
@@ -664,9 +692,18 @@ exports.cancelOrder = async (req, res) => {
 };
 exports.loadOrders = async (req, res) => {
   try {
-    const orders = await serviceOrderModel.find({
-      serviceProvider: req.serviceProvider._id,
-    });
+    const orders = await serviceOrderModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+      })
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       orders,
