@@ -21,6 +21,12 @@ const {
   loadOrders,
   loadAllNewNotifications,
   readNotification,
+  loadPendingOrders,
+  loadCompletedOrders,
+  loadRejectedOrders,
+  loadCancelledOrders,
+  loadAcceptedOrders,
+  completeOrder,
 } = require("../controllers/serviceProvider.controllers");
 const isServiceProviderAuthenticated = require("../middlewares/isServiceProviderAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -82,8 +88,31 @@ Router.route("/cancel-order/:id").delete(
   isServiceProviderAuthenticated,
   cancelOrder
 );
-
+Router.route("/complete-order/:id").post(
+  isServiceProviderAuthenticated,
+  completeOrder
+);
 Router.route("/load-orders").get(isServiceProviderAuthenticated, loadOrders);
+Router.route("/load-pending-orders").get(
+  isServiceProviderAuthenticated,
+  loadPendingOrders
+);
+Router.route("/load-completed-orders").get(
+  isServiceProviderAuthenticated,
+  loadCompletedOrders
+);
+Router.route("/load-rejected-orders").get(
+  isServiceProviderAuthenticated,
+  loadRejectedOrders
+);
+Router.route("/load-cancelled-orders").get(
+  isServiceProviderAuthenticated,
+  loadCancelledOrders
+);
+Router.route("/load-accepted-orders").get(
+  isServiceProviderAuthenticated,
+  loadAcceptedOrders
+);
 Router.route("/load-new-notifications").get(
   isServiceProviderAuthenticated,
   loadAllNewNotifications

@@ -329,7 +329,7 @@ exports.resetPassword = async (req, res) => {
 };
 exports.orderService = async (req, res) => {
   try {
-    const { serviceProvider, servicePost } = req.body;
+    const { serviceProvider, servicePost, orderDeliverySchedule } = req.body;
     const existedOrder = await serviceOrderModel.findOne({
       servicePost,
       serviceProvider,
@@ -345,15 +345,25 @@ exports.orderService = async (req, res) => {
       });
     }
     if (existedOrder) {
-      return res.status(400).json({
-        statusCode: STATUS_CODES[400],
-        message: "You have already ordered this service",
-      });
+      if (existedOrder.orderStatus === "pending") {
+        return res.status(400).json({
+          statusCode: STATUS_CODES[400],
+          message: "You have already ordered this service",
+        });
+      }
+      if (existedOrder.orderStatus === "accepted") {
+        return res.status(400).json({
+          statusCode: STATUS_CODES[400],
+          message:
+            "You are order for this service is already accepted, you can't order until your order is not completed",
+        });
+      }
     }
     let order = await new serviceOrderModel({
       serviceOrderBy: req.consumer._id,
       serviceProvider,
       servicePost,
+      orderDeliverySchedule,
     }).save();
     order = await serviceOrderModel
       .findOne({ _id: order._id })

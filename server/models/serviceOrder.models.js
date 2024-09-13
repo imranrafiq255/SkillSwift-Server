@@ -19,6 +19,7 @@ const serviceOrderSchema = mongoose.Schema(
     },
     orderDeliverySchedule: {
       type: String,
+      required: [true, "Order delivery schedule is required"],
     },
     orderStatus: {
       type: String,

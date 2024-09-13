@@ -238,9 +238,13 @@ exports.signOut = async (req, res) => {
 };
 exports.loadCurrentServiceProvider = async (req, res) => {
   try {
+    const serviceProvider = await serviceProviderModel
+      .findOne({ _id: req.serviceProvider._id })
+      .populate("serviceProviderListedServices.service");
+
     res.status(200).json({
       statusCode: STATUS_CODES[200],
-      serviceProvider: req.serviceProvider,
+      serviceProvider: serviceProvider,
     });
   } catch (error) {
     return res.status(500).json({
@@ -511,29 +515,25 @@ exports.deleteServicePost = async (req, res) => {
 };
 exports.loadAllServiceProviderPosts = async (req, res) => {
   try {
-    const servicePosts = await servicePostModel.find({
-      serviceProvider: req.serviceProvider._id,
-    });
-    return res.status(200).json({
+    const posts = await servicePostModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+      })
+      .populate("service");
+    res.status(200).json({
       statusCode: STATUS_CODES[200],
-      servicePosts,
+      posts,
     });
   } catch (error) {
     return res.status(500).json({
-      statusCode: STATUS_CODES[500],
+      statusCode: 500,
       message: error.message,
     });
   }
 };
+
 exports.acceptOrder = async (req, res) => {
   try {
-    const { orderDeliverySchedule } = req.body;
-    if (!orderDeliverySchedule) {
-      return res.status(400).json({
-        statusCode: STATUS_CODES[400],
-        message: "Order delivery schedule is required",
-      });
-    }
     const id = req.params.id;
     if (!id) {
       return res.status(404).json({
@@ -541,11 +541,21 @@ exports.acceptOrder = async (req, res) => {
         message: "Id parameter is missing",
       });
     }
-    const order = await serviceOrderModel.findByIdAndUpdate(
-      { _id: id, serviceProvider: req.serviceProvider._id },
-      { orderDeliverySchedule, orderStatus: "accepted" },
-      { new: true }
-    );
+
+    const order = await serviceOrderModel
+      .findOne({ _id: id, serviceProvider: req.serviceProvider._id })
+      .populate("serviceOrderBy")
+      .populate("servicePost");
+    if (
+      !order ||
+      !order.serviceOrderBy ||
+      !order.serviceOrderBy.consumerEmail
+    ) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Recipient email is missing or undefined",
+      });
+    }
     sendOrderEmail(
       order.serviceOrderBy.consumerEmail,
       "Order Information",
@@ -555,15 +565,16 @@ exports.acceptOrder = async (req, res) => {
         servicePostMessage: order.servicePost.servicePostMessage,
         _id: order._id,
       },
-      "This order has been accepted and will be delivered on " +
-        orderDeliverySchedule,
-      "Order Accepted By"
+      "This order has been accepted"
     );
+
     await new notificationModel({
       notificationMessage: `Order #${order._id} has been accepted by ${req.serviceProvider.serviceProviderFullName}`,
       notificationSendBy: req.serviceProvider._id,
       notificationReceivedBy: order.serviceOrderBy,
     }).save();
+    order.orderStatus = "accepted";
+    await order.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "You accepted the order successfully",
@@ -575,6 +586,7 @@ exports.acceptOrder = async (req, res) => {
     });
   }
 };
+
 exports.rejectOrder = async (req, res) => {
   try {
     const id = req.params.id;
@@ -584,10 +596,13 @@ exports.rejectOrder = async (req, res) => {
         message: "Id parameter is missing",
       });
     }
-    const order = await serviceOrderModel.findOne({
-      _id: id,
-      serviceProvider: req.serviceProvider._id,
-    });
+    const order = await serviceOrderModel
+      .findOne({
+        _id: id,
+        serviceProvider: req.serviceProvider._id,
+      })
+      .populate("serviceOrderBy")
+      .populate("servicePost");
     if (!order) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
@@ -600,19 +615,12 @@ exports.rejectOrder = async (req, res) => {
         message: "Cannot reject an order that is not pending",
       });
     }
-    const rejectedOrder = await serviceOrderModel.findByIdAndDelete({
-      _id: id,
-    });
-    if (!rejectedOrder) {
-      return res.status(404).json({
-        statusCode: STATUS_CODES[404],
-        message: "No order found with given id" + id,
-      });
-    }
+    order.orderStatus = "rejected";
+    await order.save();
     await new notificationModel({
-      notificationMessage: `Order #${rejectedOrder._id} has been rejected by ${req.serviceProvider.serviceProviderFullName}`,
+      notificationMessage: `Order #${order._id} has been rejected by ${req.serviceProvider.serviceProviderFullName}`,
       notificationSendBy: req.serviceProvider._id,
-      notificationReceivedBy: rejectedOrder.serviceOrderBy,
+      notificationReceivedBy: order.serviceOrderBy,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -634,10 +642,13 @@ exports.cancelOrder = async (req, res) => {
         message: "Id parameter is missing",
       });
     }
-    const order = await serviceOrderModel.findOne({
-      _id: id,
-      serviceProvider: req.serviceProvider._id,
-    });
+    const order = await serviceOrderModel
+      .findOne({
+        _id: id,
+        serviceProvider: req.serviceProvider._id,
+      })
+      .populate("serviceOrderBy")
+      .populate("servicePost");
     if (!order) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
@@ -650,38 +661,84 @@ exports.cancelOrder = async (req, res) => {
         message: "Cannot cancel an order that is not accepted",
       });
     }
-    const cancelledOrder = await serviceOrderModel
-      .findByIdAndDelete({
-        _id: id,
-      })
-      .populate("serviceOrderBy")
-      .populate("servicePost");
-    if (!cancelledOrder) {
-      return res.status(404).json({
-        statusCode: STATUS_CODES[404],
-        message: "No order found with given id" + id,
-      });
-    }
+    order.orderStatus = "cancelled";
+    await order.save();
     sendOrderEmail(
-      cancelledOrder.serviceOrderBy.consumerEmail,
+      order.serviceOrderBy.consumerEmail,
       "Order Information",
       {
-        orderToName: cancelledOrder?.serviceOrderBy.consumerFullName,
+        orderToName: order?.serviceOrderBy.consumerFullName,
         orderByName: req.serviceProvider.serviceProviderFullName,
-        servicePostMessage: cancelledOrder.servicePost.servicePostMessage,
-        _id: cancelledOrder._id,
+        servicePostMessage: order.servicePost.servicePostMessage,
+        _id: order._id,
       },
       "This order has been cancelled with details below:",
       "Order Cancelled By"
     );
     await new notificationModel({
-      notificationMessage: `Order #${cancelledOrder._id} has been cancelled by ${req.serviceProvider.serviceProviderFullName}`,
+      notificationMessage: `Order #${order._id} has been cancelled by ${req.serviceProvider.serviceProviderFullName}`,
       notificationSendBy: req.serviceProvider._id,
-      notificationReceivedBy: cancelledOrder.serviceOrderBy,
+      notificationReceivedBy: order.serviceOrderBy,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "You cancelled the order successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.completeOrder = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const order = await serviceOrderModel
+      .findOne({
+        _id: id,
+        serviceProvider: req.serviceProvider._id,
+      })
+      .populate("serviceOrderBy")
+      .populate("servicePost");
+    if (
+      !order ||
+      !order.serviceOrderBy ||
+      !order.serviceOrderBy.consumerEmail
+    ) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Recipient email is missing or undefined",
+      });
+    }
+    if (!order) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No order found with given id" + id,
+      });
+    }
+    if (order.orderStatus !== "accepted") {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Cannot cancel an order that is not accepted",
+      });
+    }
+    await new notificationModel({
+      notificationMessage: `Order #${order._id} has been completed by ${req.serviceProvider.serviceProviderFullName}`,
+      notificationSendBy: req.serviceProvider._id,
+      notificationReceivedBy: order.serviceOrderBy,
+    }).save();
+    order.orderStatus = "completed";
+    await order.save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "You completed the order successfully",
     });
   } catch (error) {
     return res.status(500).json({
@@ -710,6 +767,136 @@ exports.loadOrders = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadPendingOrders = async (req, res) => {
+  try {
+    const pendingOrders = await serviceOrderModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+        orderStatus: "pending",
+      })
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      pendingOrders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadCompletedOrders = async (req, res) => {
+  try {
+    const completedOrders = await serviceOrderModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+        orderStatus: "completed",
+      })
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      completedOrders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAcceptedOrders = async (req, res) => {
+  try {
+    const acceptedOrders = await serviceOrderModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+        orderStatus: "accepted",
+      })
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      acceptedOrders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadRejectedOrders = async (req, res) => {
+  try {
+    const rejectedOrders = await serviceOrderModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+        orderStatus: "rejected",
+      })
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      rejectedOrders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadCancelledOrders = async (req, res) => {
+  try {
+    const cancelledOrders = await serviceOrderModel
+      .find({
+        serviceProvider: req.serviceProvider._id,
+        orderStatus: "cancelled",
+      })
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      cancelledOrders,
+    });
+  } catch (error) {
+    res.status(500).json({
       statusCode: STATUS_CODES[500],
       message: error.message,
     });
