@@ -163,6 +163,7 @@ exports.addAddress = async (req, res) => {
 exports.signIn = async (req, res) => {
   try {
     const { serviceProviderEmail, serviceProviderPassword } = req.body;
+
     if (!serviceProviderEmail || !serviceProviderPassword) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
@@ -515,11 +516,16 @@ exports.deleteServicePost = async (req, res) => {
 };
 exports.loadAllServiceProviderPosts = async (req, res) => {
   try {
-    const posts = await servicePostModel
+    let posts = await servicePostModel
       .find({
         serviceProvider: req.serviceProvider._id,
       })
       .populate("service");
+
+    posts = posts.sort((post1, post2) => {
+      return new Date(post2.createdAt) - new Date(post1.createdAt);
+    });
+
     res.status(200).json({
       statusCode: STATUS_CODES[200],
       posts,
@@ -527,6 +533,44 @@ exports.loadAllServiceProviderPosts = async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       statusCode: 500,
+      message: error.message,
+    });
+  }
+};
+
+exports.deleteServicePost = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Id parameter is missing",
+      });
+    }
+    const deletedServicePost = await servicePostModel.findOneAndDelete({
+      _id: id,
+      serviceProvider: req.serviceProvider._id,
+    });
+
+    if (!deletedServicePost) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "No post found with given id: " + id,
+      });
+    }
+    const orders = await serviceOrderModel.find({
+      serviceProvider: req.serviceProvider._id,
+      servicePost: id,
+    });
+    await Promise.all(orders.map(async (order) => await order.deleteOne()));
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service post and associated orders deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
       message: error.message,
     });
   }
@@ -904,7 +948,7 @@ exports.loadCancelledOrders = async (req, res) => {
 };
 exports.loadAllNewNotifications = async (req, res) => {
   try {
-    const notifications = await notificationModel
+    let notifications = await notificationModel
       .find({
         notificationReceivedBy: req.serviceProvider._id,
         notificationRead: false,

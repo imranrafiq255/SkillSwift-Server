@@ -76,6 +76,10 @@ Router.route("/load-all-service-provider-posts").get(
   isServiceProviderAuthenticated,
   loadAllServiceProviderPosts
 );
+Router.route("/delete-service-post/:id").delete(
+  isServiceProviderAuthenticated,
+  deleteServicePost
+);
 Router.route("/accept-order/:id").post(
   isServiceProviderAuthenticated,
   acceptOrder
