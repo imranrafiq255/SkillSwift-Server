@@ -51,16 +51,6 @@ const serviceProviderSchema = mongoose.Schema(
       default: false,
     },
     serviceProviderAddress: String,
-    // serviceProviderCNICNumber: {
-    //   type: String,
-    //   unique: [true, "CNIC number should be unique"],
-    //   validate: {
-    //     validator: function (v) {
-    //       return /^\d{13}$/.test(v); // Example: Validate that CNIC is a 13-digit number
-    //     },
-    //     message: "CNIC number should be a valid 13-digit number",
-    //   },
-    // },
     serviceProviderCNICImages: [String],
     serviceProviderListedServices: [
       {

@@ -20,6 +20,15 @@ exports.signUp = async (req, res) => {
       serviceProviderEmail,
       serviceProviderPassword,
     } = req.body;
+    const existingServiceProvider = await serviceProviderModel.findOne({
+      serviceProviderEmail,
+    });
+    if (existingServiceProvider) {
+      return res.status(409).json({
+        statusCode: STATUS_CODES[409],
+        message: "Email already exists",
+      });
+    }
     const newServiceProvider = await new serviceProviderModel({
       serviceProviderFullName,
       serviceProviderEmail,
