@@ -143,6 +143,7 @@ exports.sendResetPasswordLink = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const token = req.params.token;
+
     if (!token) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
@@ -168,6 +169,7 @@ exports.resetPassword = async (req, res) => {
       { new: true }
     );
     admin.adminTokenVersion = admin.adminTokenVersion + 1;
+    res.clearCookie("adminToken");
     await admin.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],

@@ -362,6 +362,7 @@ exports.setWorkingHours = async (req, res) => {
     const { serviceProviderWorkingHours } = req.body;
 
     const isDayExisted = await serviceProviderModel.findOne({
+      _id: req.serviceProvider._id,
       "serviceProviderWorkingHours.dayOfWeek":
         serviceProviderWorkingHours.dayOfWeek,
     });

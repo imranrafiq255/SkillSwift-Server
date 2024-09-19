@@ -30,6 +30,7 @@ const isAdminAuthenticated = async (req, res, next) => {
       });
     }
     if (admin.adminTokenVersion !== decodedToken.adminTokenVersion) {
+      res.clearCookie("adminToken");
       return res.status(401).json({
         statusCode: STATUS_CODES[401],
         message:
