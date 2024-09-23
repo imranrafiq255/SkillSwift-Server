@@ -537,6 +537,17 @@ exports.fileDispute = async (req, res) => {
         message: "Service provider not found",
       });
     }
+    const dispute = await disputeModel.findOne({
+      disputeFiledBy: req.consumer._id,
+      disputeFiledAgainst: id,
+    });
+    if (dispute && dispute.disputeStatus === "pending") {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message:
+          "You have already filed a dispute against this service provider",
+      });
+    }
     const { disputeTitle, disputeDetails } = req.body;
     await new disputeModel({
       disputeTitle,
@@ -669,6 +680,7 @@ exports.submitRefundRequest = async (req, res) => {
     const isRefundRequestExisted = await refundModel.findOne({
       refundRequestedBy: req.consumer._id,
       refundRequestedAgainst: id,
+      refundAmountStatus: "pending",
     });
     if (isRefundRequestExisted) {
       return res.status(400).json({

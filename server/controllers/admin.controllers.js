@@ -15,6 +15,8 @@ const disputeModel = require("../models/dispute.models");
 const notificationModel = require("../models/notification.models");
 const refundModel = require("../models/refund.models");
 const serviceProviderModel = require("../models/serviceProvider.models");
+const serviceOrderModel = require("../models/serviceOrder.models");
+const consumerModel = require("../models/consumer.models");
 exports.signUp = async (req, res) => {
   try {
     const { adminFullName, adminEmail, adminPassword, adminPhoneNumber } =
@@ -301,32 +303,43 @@ exports.resolveDispute = async (req, res) => {
         message: "Dispute resolution is required",
       });
     }
-    const dispute = await disputeModel.findByIdAndUpdate(
-      id,
-      {
-        disputeResolution,
-        disputeStatus: "resolved",
-      },
-      { new: true }
-    );
+    const dispute = await disputeModel
+      .findByIdAndUpdate(
+        id,
+        {
+          disputeResolution: disputeResolution,
+          disputeStatus: "resolved",
+        },
+        { new: true }
+      )
+      .populate("disputeFiledBy");
     if (!dispute) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
         message: "Dispute not found with id " + id,
       });
     }
-    sendDisputeEmail(
+    if (!dispute.disputeFiledBy.consumerEmail) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Consumer email is not available for this dispute.",
+      });
+    }
+    await sendDisputeEmail(
       dispute.disputeFiledBy.consumerEmail,
       "Dispute Information",
       "Your dispute has been resolved.",
       "Dispute Resolved By",
       req.admin.adminFullName
     );
+
+    // Send notification to the consumer
     await new notificationModel({
-      notificationMessage: `Dispute #${dispute._id} has been rejected by ${req.admin.adminFullName}`,
+      notificationMessage: `${disputeResolution}`,
       notificationSendBy: req.admin._id,
       notificationReceivedBy: dispute.disputeFiledBy,
     }).save();
+
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Dispute resolved successfully",
@@ -338,6 +351,7 @@ exports.resolveDispute = async (req, res) => {
     });
   }
 };
+
 exports.rejectDispute = async (req, res) => {
   try {
     const id = req.params.id;
@@ -345,6 +359,13 @@ exports.rejectDispute = async (req, res) => {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Dispute id is required",
+      });
+    }
+    const { disputeResolution } = req.body;
+    if (!disputeResolution) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Dispute resolution is required",
       });
     }
     const disputeExisted = await disputeModel
@@ -359,6 +380,7 @@ exports.rejectDispute = async (req, res) => {
     }
     await disputeModel.findByIdAndUpdate(id, {
       disputeStatus: "rejected",
+      disputeResolution: disputeResolution,
     });
     sendDisputeEmail(
       disputeExisted.disputeFiledBy.consumerEmail,
@@ -385,9 +407,16 @@ exports.rejectDispute = async (req, res) => {
 };
 exports.loadDisputes = async (req, res) => {
   try {
+    let disputes = await disputeModel
+      .find()
+      .populate("disputeFiledAgainst")
+      .populate("disputeFiledBy");
+    disputes = disputes.filter((dipsute) => {
+      return !dipsute.disputeResolution;
+    });
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      disputes: await disputeModel.find(),
+      disputes,
     });
   } catch (error) {
     return res.status(500).json({
@@ -484,9 +513,16 @@ exports.rejectRefundRequest = async (req, res) => {
 };
 exports.loadRefunds = async (req, res) => {
   try {
+    let refunds = await refundModel
+      .find()
+      .populate("refundRequestedBy")
+      .populate("refundRequestedAgainst");
+    refunds = refunds.filter((refund) => {
+      return refund.refundAmountStatus === "pending";
+    });
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
-      refunds: await refundModel.find(),
+      refunds,
     });
   } catch (error) {
     return res.status(500).json({
@@ -522,6 +558,66 @@ exports.verifyServiceProviderAccount = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Service provider account has been verified",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAllOrders = async (req, res) => {
+  try {
+    let orders = await serviceOrderModel
+      .find()
+      .populate({
+        path: "servicePost",
+        populate: {
+          path: "service",
+          model: serviceModel,
+        },
+      })
+      .populate("serviceOrderBy");
+    orders = orders.sort((order) => {
+      return order.orderStatus === "pending";
+    });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      orders,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAllServiceProviders = async (req, res) => {
+  try {
+    let serviceProviders = await serviceProviderModel
+      .find()
+      .populate("serviceProviderListedServices.service");
+    serviceProviders = serviceProviders.sort((a, b) => {
+      return a.isAccountVerified - b.isAccountVerified;
+    });
+
+    res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      serviceProviders,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadAllConsumers = async (req, res) => {
+  try {
+    const consumers = await consumerModel.find();
+    res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      consumers,
     });
   } catch (error) {
     return res.status(500).json({

@@ -16,17 +16,17 @@ const disputeSchema = mongoose.Schema(
     },
     disputeFiledBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Consumer" || "ServiceProvider",
+      ref: "Consumer",
       required: [true, "dispute filed by is required"],
     },
     disputeFiledAgainst: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Consumer" || "ServiceProvider",
+      ref: "ServiceProvider",
       required: [true, "dispute filed against is required"],
     },
     disputeStatus: {
       type: String,
-      enum: ["pending", "resolved"],
+      enum: ["pending", "resolved", "rejected"],
       default: "pending",
     },
     disputeResolution: {

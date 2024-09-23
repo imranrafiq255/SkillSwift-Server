@@ -17,6 +17,9 @@ const {
   loadDisputes,
   loadRefunds,
   verifyServiceProviderAccount,
+  loadAllOrders,
+  loadAllServiceProviders,
+  loadAllConsumers,
 } = require("../controllers/admin.controllers");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
 const isAdminAuthenticated = require("../middlewares/isAdminAuthenticated.middlewares");
@@ -34,7 +37,7 @@ Router.route("/delete-service/:id").delete(isAdminAuthenticated, deleteService);
 Router.route("/load-all-services").get(loadAllServices);
 Router.route("/update-service/:id").put(isAdminAuthenticated, updateService);
 Router.route("/resolve-dispute/:id").post(isAdminAuthenticated, resolveDispute);
-Router.route("/reject-dispute/:id").get(isAdminAuthenticated, rejectDispute);
+Router.route("/reject-dispute/:id").post(isAdminAuthenticated, rejectDispute);
 Router.route("/approve-refund-request/:id").get(
   isAdminAuthenticated,
   approveRefundRequest
@@ -49,4 +52,10 @@ Router.route("/verify-service-provider-account/:id").get(
   isAdminAuthenticated,
   verifyServiceProviderAccount
 );
+Router.route("/load-all-orders").get(isAdminAuthenticated, loadAllOrders);
+Router.route("/load-service-providers").get(
+  isAdminAuthenticated,
+  loadAllServiceProviders
+);
+Router.route("/load-all-consumers").get(isAdminAuthenticated, loadAllConsumers);
 module.exports = Router;
