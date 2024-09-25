@@ -52,14 +52,6 @@ const serviceProviderSchema = mongoose.Schema(
     },
     serviceProviderAddress: String,
     serviceProviderCNICImages: [String],
-    serviceProviderListedServices: [
-      {
-        service: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Service",
-        },
-      },
-    ],
     serviceProviderWorkingHours: [
       {
         dayOfWeek: String,

@@ -248,9 +248,9 @@ exports.signOut = async (req, res) => {
 };
 exports.loadCurrentServiceProvider = async (req, res) => {
   try {
-    const serviceProvider = await serviceProviderModel
-      .findOne({ _id: req.serviceProvider._id })
-      .populate("serviceProviderListedServices.service");
+    const serviceProvider = await serviceProviderModel.findOne({
+      _id: req.serviceProvider._id,
+    });
 
     res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -422,53 +422,10 @@ exports.addCNICDetails = async (req, res) => {
     });
   }
 };
-exports.addListedServices = async (req, res) => {
-  try {
-    const { serviceProviderListedServices } = req.body;
-    const serviceProvider = await serviceProviderModel.findOne({
-      _id: req.serviceProvider._id,
-    });
-
-    const currentServices = serviceProvider.serviceProviderListedServices;
-
-    const duplicateServices = serviceProviderListedServices.filter(
-      (newService) =>
-        currentServices.some(
-          (existingService) =>
-            existingService.service.toString() === newService.service.toString()
-        )
-    );
-    if (duplicateServices.length > 0) {
-      return res.status(400).json({
-        statusCode: STATUS_CODES[400],
-        message: "Please select unique services",
-      });
-    }
-    const updatedServices = [
-      ...currentServices,
-      ...serviceProviderListedServices,
-    ];
-    await serviceProviderModel.findByIdAndUpdate(
-      { _id: req.serviceProvider._id },
-      { serviceProviderListedServices: updatedServices },
-      { new: true }
-    );
-
-    return res.status(200).json({
-      statusCode: STATUS_CODES[200],
-      message: "Service provider listed services updated successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      statusCode: STATUS_CODES[500],
-      message: error.message,
-    });
-  }
-};
 
 exports.addServicePost = async (req, res) => {
   try {
-    const { service, servicePostMessage, servicePostPrice } = req.body;
+    const { serviceName, servicePostMessage, servicePostPrice } = req.body;
     if (!req.file) {
       return res.status(400).json({
         statusCode: 400,
@@ -477,7 +434,7 @@ exports.addServicePost = async (req, res) => {
     }
     const upload = await cloudinary.v2.uploader.upload(fileUri(req.file));
     await new servicePostModel({
-      service,
+      serviceName,
       servicePostMessage,
       servicePostPrice,
       serviceProvider: req.serviceProvider._id,
@@ -526,11 +483,9 @@ exports.deleteServicePost = async (req, res) => {
 };
 exports.loadAllServiceProviderPosts = async (req, res) => {
   try {
-    let posts = await servicePostModel
-      .find({
-        serviceProvider: req.serviceProvider._id,
-      })
-      .populate("service");
+    let posts = await servicePostModel.find({
+      serviceProvider: req.serviceProvider._id,
+    });
 
     posts = posts.sort((post1, post2) => {
       return new Date(post2.createdAt) - new Date(post1.createdAt);
@@ -809,10 +764,6 @@ exports.loadOrders = async (req, res) => {
       })
       .populate({
         path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
       })
       .populate("serviceOrderBy");
     return res.status(200).json({
@@ -835,10 +786,6 @@ exports.loadPendingOrders = async (req, res) => {
       })
       .populate({
         path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
       })
       .populate("serviceOrderBy");
     return res.status(200).json({
@@ -861,10 +808,6 @@ exports.loadCompletedOrders = async (req, res) => {
       })
       .populate({
         path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
       })
       .populate("serviceOrderBy");
     return res.status(200).json({
@@ -887,10 +830,6 @@ exports.loadAcceptedOrders = async (req, res) => {
       })
       .populate({
         path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
       })
       .populate("serviceOrderBy");
     return res.status(200).json({
@@ -913,10 +852,6 @@ exports.loadRejectedOrders = async (req, res) => {
       })
       .populate({
         path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
       })
       .populate("serviceOrderBy");
     return res.status(200).json({
@@ -939,10 +874,6 @@ exports.loadCancelledOrders = async (req, res) => {
       })
       .populate({
         path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
       })
       .populate("serviceOrderBy");
     return res.status(200).json({

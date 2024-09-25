@@ -2,10 +2,11 @@ const mongoose = require("mongoose");
 
 const servicePostSchema = mongoose.Schema(
   {
-    service: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Service",
-      required: [true, "Service id is required"],
+    serviceName: {
+      type: String,
+      required: [true, "Service name is required"],
+      minlength: 3,
+      maxlength: 50,
     },
     serviceProvider: {
       type: mongoose.Schema.Types.ObjectId,

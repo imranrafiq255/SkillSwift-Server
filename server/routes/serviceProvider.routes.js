@@ -11,7 +11,6 @@ const {
   loadCurrentServiceProvider,
   setWorkingHours,
   addCNICDetails,
-  addListedServices,
   addServicePost,
   deleteServicePost,
   loadAllServiceProviderPosts,
@@ -58,10 +57,6 @@ Router.route("/add-cnic-details").post(
   isServiceProviderAuthenticated,
   twoImagesUpload("serviceProviderCNICImages"),
   addCNICDetails
-);
-Router.route("/add-listed-services").post(
-  isServiceProviderAuthenticated,
-  addListedServices
 );
 Router.route("/add-service-post").post(
   isServiceProviderAuthenticated,

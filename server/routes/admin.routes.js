@@ -6,10 +6,6 @@ const {
   resetPassword,
   loadCurrentAdmin,
   signOut,
-  addService,
-  deleteService,
-  loadAllServices,
-  updateService,
   resolveDispute,
   rejectDispute,
   approveRefundRequest,
@@ -32,10 +28,6 @@ Router.route("/reset-password/:token").post(resetPassword);
 Router.route("/load-current-admin").get(isAdminAuthenticated, loadCurrentAdmin);
 Router.route("/sign-out").get(isAdminAuthenticated, signOut);
 // Services
-Router.route("/add-service").post(isAdminAuthenticated, addService);
-Router.route("/delete-service/:id").delete(isAdminAuthenticated, deleteService);
-Router.route("/load-all-services").get(loadAllServices);
-Router.route("/update-service/:id").put(isAdminAuthenticated, updateService);
 Router.route("/resolve-dispute/:id").post(isAdminAuthenticated, resolveDispute);
 Router.route("/reject-dispute/:id").post(isAdminAuthenticated, rejectDispute);
 Router.route("/approve-refund-request/:id").get(
