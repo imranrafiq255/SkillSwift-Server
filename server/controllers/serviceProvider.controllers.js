@@ -204,7 +204,7 @@ exports.signIn = async (req, res) => {
     if (!isPasswordMatch) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
-        message: "Invalid password",
+        message: "Incorrect password",
       });
     }
     const token = await jwt?.sign(

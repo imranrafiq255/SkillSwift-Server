@@ -9,7 +9,6 @@ const serviceProviderSchema = mongoose.Schema(
     },
     serviceProviderEmail: {
       type: String,
-      unique: [true, "ServiceProvider email should be unique"],
       lowercase: true,
       validate: {
         validator: function (v) {

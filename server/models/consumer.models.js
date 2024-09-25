@@ -8,7 +8,6 @@ const consumerSchema = mongoose.Schema(
     },
     consumerEmail: {
       type: String,
-      unique: [true, "Consumer email should be unique"],
       lowercase: true,
       validate: {
         validator: function (v) {

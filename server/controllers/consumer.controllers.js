@@ -111,7 +111,7 @@ exports.avatarAndPhoneNumber = async (req, res) => {
         message: "Consumer not found in database with id '" + id + "'",
       });
     }
-    const { consumerPhoneNumber } = req.body;
+    const { consumerPhoneNumber, consumerAddress } = req.body;
     if (!req.file) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
@@ -120,6 +120,7 @@ exports.avatarAndPhoneNumber = async (req, res) => {
     }
     const upload = await cloudinary.v2.uploader.upload(fileUri(req.file));
     consumer.consumerPhoneNumber = consumerPhoneNumber;
+    consumer.consumerAddress = consumerAddress;
     consumer.consumerAvatar = upload.secure_url;
     await consumer.save();
     return res.status(200).json({

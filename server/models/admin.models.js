@@ -8,7 +8,6 @@ const adminSchema = mongoose.Schema(
     },
     adminEmail: {
       type: String,
-      unique: [true, "admin email should be unique"],
       lowercase: true,
       validate: {
         validator: function (v) {
