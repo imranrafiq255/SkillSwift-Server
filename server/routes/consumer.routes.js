@@ -18,6 +18,12 @@ const {
   deleteDispute,
   addRating,
   submitRefundRequest,
+  loadRecentServicePosts,
+  loadPopularServicePosts,
+  loadOrders,
+  refundAmountRequest,
+  loadAllRefunds,
+  changeConsumerAddress,
 } = require("../controllers/consumer.controllers");
 const isConsumerAuthenticated = require("../middlewares/isConsumerAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -59,5 +65,17 @@ Router.route("/add-rating/:id").post(isConsumerAuthenticated, addRating);
 Router.route("/submit-refund-request/:id").post(
   isConsumerAuthenticated,
   submitRefundRequest
+);
+Router.route("/load-recent-service-posts").get(loadRecentServicePosts);
+Router.route("/load-popular-service-posts").get(loadPopularServicePosts);
+Router.route("/load-orders").get(isConsumerAuthenticated, loadOrders);
+Router.route("/refund-amount-request").post(
+  isConsumerAuthenticated,
+  refundAmountRequest
+);
+Router.route("/load-refunds").get(isConsumerAuthenticated, loadAllRefunds);
+Router.route("/change-consumer-address").post(
+  isConsumerAuthenticated,
+  changeConsumerAddress
 );
 module.exports = Router;

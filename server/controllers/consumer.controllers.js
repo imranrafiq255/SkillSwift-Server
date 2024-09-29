@@ -356,7 +356,7 @@ exports.orderService = async (req, res) => {
         return res.status(400).json({
           statusCode: STATUS_CODES[400],
           message:
-            "You are order for this service is already accepted, you can't order until your order is not completed",
+            "Your order for this service is already accepted, you can't order until your order is not completed",
         });
       }
     }
@@ -378,11 +378,11 @@ exports.orderService = async (req, res) => {
         servicePostMessage: order.servicePost.servicePostMessage,
         orderByName: req.consumer.consumerFullName,
       },
-      "Your order has been placed please see details below: ",
+      "Your order has been placed ",
       "Ordered By"
     );
     await new notificationModel({
-      notificationMessage: `Order #${order._id} has been cancelled by ${req.consumer.consumerFullName}`,
+      notificationMessage: `Your order has been placed please see details below:`,
       notificationSendBy: req.consumer._id,
       notificationReceivedBy: order.serviceProvider,
       notificationType: order._id,
@@ -408,7 +408,7 @@ exports.rejectOrder = async (req, res) => {
         message: "Id parameter is missing",
       });
     }
-    const order = await serviceOrderModel.findOne({
+    let order = await serviceOrderModel.findOne({
       _id: id,
       serviceOrderBy: req.consumer._id,
     });
@@ -424,18 +424,10 @@ exports.rejectOrder = async (req, res) => {
         message: "Cannot reject an order that is not pending",
       });
     }
-    const rejectedOrder = await serviceOrderModel.findByIdAndDelete({
-      _id: id,
-      serviceOrderBy: req.consumer._id,
-    });
-    if (!rejectedOrder) {
-      return res.status(404).json({
-        statusCode: STATUS_CODES[404],
-        message: "No order found with given id" + id,
-      });
-    }
+    order.orderStatus = "cancelled";
+    await order.save();
     const service_provider = await serviceProviderModel.findOne({
-      _id: rejectedOrder.serviceProvider,
+      _id: order.serviceProvider,
     });
     if (!service_provider) {
       return res.status(404).json({
@@ -456,10 +448,10 @@ exports.rejectOrder = async (req, res) => {
       "Rejected By"
     );
     await new notificationModel({
-      notificationMessage: `Order #${rejectedOrder._id} has been rejected by ${req.consumer.serviceProviderFullName}`,
+      notificationMessage: `Order #${order._id} has been rejected by ${req.consumer.serviceProviderFullName}`,
       notificationSendBy: req.consumer._id,
-      notificationReceivedBy: rejectedOrder.serviceProvider,
-      notificationType: rejectedOrder._id,
+      notificationReceivedBy: order.serviceProvider,
+      notificationType: order._id,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -472,12 +464,34 @@ exports.rejectOrder = async (req, res) => {
     });
   }
 };
+exports.loadOrders = async (req, res) => {
+  try {
+    const orders = await serviceOrderModel
+      .find({
+        serviceOrderBy: req.consumer._id,
+      })
+      .populate("serviceProvider")
+      .populate("servicePost");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
 exports.loadNewNotifications = async (req, res) => {
   try {
-    const notifications = await notificationModel.find({
-      notificationReceivedBy: req.consumer._id,
-      notificationRead: false,
-    });
+    const notifications = await notificationModel
+      .find({
+        notificationReceivedBy: req.consumer._id,
+        notificationRead: false,
+      })
+      .populate("notificationReceivedBy")
+      .populate("notificationSendBy");
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       notifications,
@@ -541,20 +555,22 @@ exports.fileDispute = async (req, res) => {
     const dispute = await disputeModel.findOne({
       disputeFiledBy: req.consumer._id,
       disputeFiledAgainst: id,
+      order: order,
     });
-    if (dispute && dispute.disputeStatus === "pending") {
+    if (dispute) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message:
           "You have already filed a dispute against this service provider",
       });
     }
-    const { disputeTitle, disputeDetails } = req.body;
+    const { disputeTitle, disputeDetails, order } = req.body;
     await new disputeModel({
       disputeTitle,
       disputeDetails,
       disputeFiledBy: req.consumer._id,
       disputeFiledAgainst: id,
+      order,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -572,9 +588,20 @@ exports.fileDispute = async (req, res) => {
 };
 exports.loadDisputes = async (req, res) => {
   try {
-    const disputes = await disputeModel.find({
-      disputeFiledBy: req.consumer._id,
-    });
+    const disputes = await disputeModel
+      .find({
+        disputeFiledBy: req.consumer._id,
+      })
+      .populate("disputeFiledBy")
+      .populate("disputeFiledAgainst")
+      .populate("order")
+      .populate({
+        path: "order",
+        populate: {
+          path: "servicePost",
+          model: "ServicePost",
+        },
+      });
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       disputes,
@@ -632,10 +659,10 @@ exports.addRating = async (req, res) => {
         message: "Service post not found with given id",
       });
     }
-    const isRatingExisted = await ratingModel.findOne({
-      ratedBy: req.consumer._id,
-      servicePost: id,
-    });
+    const isRatingExisted = servicePost.servicePostRatings.find(
+      (rating) => rating.consumerId.toString() === req.consumer._id.toString()
+    );
+
     if (isRatingExisted) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
@@ -644,12 +671,10 @@ exports.addRating = async (req, res) => {
     }
 
     const { ratingStars } = req.body;
-    const rating = await new ratingModel({
-      servicePost: id,
-      ratingStars,
-      ratedBy: req.consumer._id,
-    }).save();
-    servicePost.servicePostRatings.push({ rating: rating._id });
+    servicePost.servicePostRatings.push({
+      consumerId: req?.consumer?._id,
+      rating: ratingStars,
+    });
     await servicePost.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -701,6 +726,145 @@ exports.submitRefundRequest = async (req, res) => {
       statusCode: STATUS_CODES[200],
       message:
         "Refund request submitted successfully, please wait for approval or rejection",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadRecentServicePosts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const servicePosts = await servicePostModel
+      .find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("serviceProvider");
+    const totalPosts = await servicePostModel.countDocuments();
+
+    const hasMore = skip + limit < totalPosts;
+
+    return res.status(200).json({
+      statusCode: 200,
+      servicePosts,
+      hasMore,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: 500,
+      message: error.message,
+    });
+  }
+};
+
+exports.loadPopularServicePosts = async (req, res) => {
+  try {
+    const all = req.query.all;
+    if (all) {
+      const servicePosts = await servicePostModel
+        .find()
+        .sort({ servicePostRatings: -1 })
+        .populate("serviceProvider");
+      return res.status(200).json({
+        statusCode: STATUS_CODES[200],
+        servicePosts,
+      });
+    }
+    const servicePosts = await servicePostModel
+      .find()
+      .populate("serviceProvider")
+      .sort({ servicePostRatings: -1 })
+      .limit(8);
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      servicePosts,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.refundAmountRequest = async (req, res) => {
+  try {
+    const {
+      refundRequestedAgainst,
+      order,
+      refundAmountPercentage,
+      refundDetails,
+    } = req.body;
+    const refund = await refundModel.findOne({
+      refundRequestedBy: req.consumer._id,
+      refundRequestedAgainst,
+      order,
+    });
+    if (refund) {
+      return res.status(403).json({
+        statusCode: STATUS_CODES[403],
+        message: "Refund request is already pending",
+      });
+    }
+    await new refundModel({
+      refundRequestedBy: req.consumer._id,
+      refundRequestedAgainst,
+      order,
+      refundAmountPercentage,
+      refundDetails,
+    }).save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Refund request submitted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.loadAllRefunds = async (req, res) => {
+  try {
+    const refunds = await refundModel
+      .find({ refundRequestedBy: req.consumer._id })
+      .populate("refundRequestedAgainst")
+      .populate("order")
+      .populate({
+        path: "order",
+        populate: {
+          path: "servicePost",
+          model: "ServicePost",
+        },
+      });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      refunds,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.changeConsumerAddress = async (req, res) => {
+  try {
+    const { consumerAddress } = req.body;
+    const consumer = await consumerModel.findOne({ _id: req?.consumer?._id });
+    consumer.consumerAddress = consumerAddress;
+    await consumer?.save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Consumer address updated successfully",
     });
   } catch (error) {
     return res.status(500).json({

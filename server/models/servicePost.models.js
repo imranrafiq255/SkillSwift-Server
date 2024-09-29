@@ -27,9 +27,16 @@ const servicePostSchema = mongoose.Schema(
     },
     servicePostRatings: [
       {
-        rating: {
+        consumerId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Rating",
+          ref: "Consumer",
+          required: [true, "Consumer id is required"],
+        },
+        rating: {
+          type: Number,
+          min: 1,
+          max: 5,
+          required: [true, "Rating is required"],
         },
       },
     ],

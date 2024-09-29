@@ -434,7 +434,15 @@ exports.loadRefunds = async (req, res) => {
     let refunds = await refundModel
       .find()
       .populate("refundRequestedBy")
-      .populate("refundRequestedAgainst");
+      .populate("refundRequestedAgainst")
+      .populate("order")
+      .populate({
+        path: "order",
+        populate: {
+          path: "servicePost",
+          model: "ServicePost",
+        },
+      });
     refunds = refunds.filter((refund) => {
       return refund.refundAmountStatus === "pending";
     });
@@ -488,13 +496,7 @@ exports.loadAllOrders = async (req, res) => {
   try {
     let orders = await serviceOrderModel
       .find()
-      .populate({
-        path: "servicePost",
-        populate: {
-          path: "service",
-          model: serviceModel,
-        },
-      })
+      .populate("servicePost")
       .populate("serviceOrderBy");
     orders = orders.sort((order) => {
       return order.orderStatus === "pending";

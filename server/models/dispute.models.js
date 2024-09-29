@@ -8,6 +8,11 @@ const disputeSchema = mongoose.Schema(
       minlength: 3,
       maxlength: 50,
     },
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ServiceOrder",
+      required: [true, "dispute order is required"],
+    },
     disputeDetails: {
       type: String,
       required: [true, "dispute details are required"],

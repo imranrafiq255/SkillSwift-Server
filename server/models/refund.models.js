@@ -12,7 +12,12 @@ const refundSchema = mongoose.Schema(
       ref: "ServiceProvider",
       required: [true, "refund requested against's id is required"],
     },
-    refundAmount: {
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ServiceOrder",
+      required: [true, "refund requested against's order is required"],
+    },
+    refundAmountPercentage: {
       type: Number,
       required: [true, "refund amount is required"],
     },
