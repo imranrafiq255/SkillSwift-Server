@@ -1,19 +1,27 @@
 const mongoose = require("mongoose");
 
-const conversationSchema = mongoose.Schema(
+const conversationSchema = new mongoose.Schema(
   {
     members: {
       sender: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Consumer" || "ServiceProvider",
+        refPath: "memberTypeSender",
       },
       receiver: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Consumer" || "ServiceProvider",
+        refPath: "memberTypeReceiver",
       },
     },
+    memberTypeSender: {
+      type: String,
+      enum: ["Consumer", "ServiceProvider"],
+    },
+    memberTypeReceiver: {
+      type: String,
+      enum: ["Consumer", "ServiceProvider"],
+    },
   },
-  { timestams: true }
+  { timestamps: true }
 );
 
 const conversationModel = mongoose.model("Conversation", conversationSchema);

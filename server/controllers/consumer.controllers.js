@@ -16,6 +16,9 @@ const disputeModel = require("../models/dispute.models");
 const ratingModel = require("../models/Rating.models");
 const servicePostModel = require("../models/servicePost.models");
 const refundModel = require("../models/refund.models");
+const { promise } = require("bcrypt/promises");
+const conversationModel = require("../models/Conversation.models");
+const messageModel = require("../models/message.models");
 exports.signUp = async (req, res) => {
   try {
     const { consumerFullName, consumerEmail, consumerPassword } = req.body;
@@ -485,13 +488,25 @@ exports.loadOrders = async (req, res) => {
 };
 exports.loadNewNotifications = async (req, res) => {
   try {
-    const notifications = await notificationModel
+    let notifications = await notificationModel
       .find({
         notificationReceivedBy: req.consumer._id,
         notificationRead: false,
       })
-      .populate("notificationReceivedBy")
-      .populate("notificationSendBy");
+      .populate("notificationReceivedBy");
+
+    notifications = await Promise.all(
+      notifications.map(async (notification) => {
+        const serviceProvider = await serviceProviderModel.findOne({
+          _id: notification.notificationSendBy,
+        });
+        return {
+          ...notification.toObject(),
+          notificationSendBy: serviceProvider,
+        };
+      })
+    );
+
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       notifications,
@@ -865,6 +880,186 @@ exports.changeConsumerAddress = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       message: "Consumer address updated successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.createConversation = async (req, res) => {
+  try {
+    const { receiver, receiverType } = req.body;
+
+    const sender = req.consumer._id;
+    const senderType = "Consumer";
+
+    if (receiver.toString() === sender.toString()) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "You cannot start a conversation with yourself",
+      });
+    }
+
+    if (
+      !receiver ||
+      !receiverType ||
+      !["Consumer", "ServiceProvider"].includes(receiverType)
+    ) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Invalid receiver information",
+      });
+    }
+
+    const existingConversation = await conversationModel.findOne({
+      $or: [
+        {
+          "members.sender": sender,
+          "members.receiver": receiver,
+          memberTypeSender: senderType,
+          memberTypeReceiver: receiverType,
+        },
+        {
+          "members.sender": receiver,
+          "members.receiver": sender,
+          memberTypeSender: receiverType,
+          memberTypeReceiver: senderType,
+        },
+      ],
+    });
+
+    if (existingConversation) {
+      return res.status(409).json({
+        statusCode: STATUS_CODES[409],
+        message: "A conversation with this user already exists",
+      });
+    }
+
+    const newConversation = new conversationModel({
+      members: {
+        sender,
+        receiver,
+      },
+      memberTypeSender: senderType,
+      memberTypeReceiver: receiverType,
+    });
+
+    await newConversation.save();
+    return res.status(201).json({
+      statusCode: STATUS_CODES[201],
+      message: "Conversation created successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.loadConversations = async (req, res) => {
+  try {
+    const consumerId = req.consumer._id;
+    const conversations = await conversationModel
+      .find({
+        $or: [
+          { "members.sender": consumerId },
+          { "members.receiver": consumerId },
+        ],
+      })
+      .populate({
+        path: "members.sender",
+        refPath: "memberTypeSender",
+        select:
+          "_id consumerFullName consumerAvatar consumerEmail serviceProviderFullName serviceProviderEmail serviceProviderAvatar",
+      })
+      .populate({
+        path: "members.receiver",
+        refPath: "memberTypeReceiver",
+        select:
+          "_id consumerFullName consumerAvatar consumerEmail serviceProviderFullName serviceProviderEmail serviceProviderAvatar",
+      })
+      .sort({ updatedAt: -1 });
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      conversations,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.sendMessage = async (req, res) => {
+  try {
+    const { conversationId, message } = req.body;
+    const sender = req.consumer._id;
+    const senderType = "Consumer";
+
+    const conversation = await conversationModel.findById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Conversation not found",
+      });
+    }
+
+    if (
+      conversation.members.sender.toString() !== sender.toString() &&
+      conversation.members.receiver.toString() !== sender.toString()
+    ) {
+      return res.status(403).json({
+        statusCode: STATUS_CODES[403],
+        message: "You are not a member of this conversation",
+      });
+    }
+
+    const newMessage = new messageModel({
+      sender,
+      senderType,
+      conversation: conversationId,
+      message,
+    });
+
+    await newMessage.save();
+    return res.status(201).json({
+      statusCode: STATUS_CODES[201],
+      message: "Message sent successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.loadMessages = async (req, res) => {
+  try {
+    const conversationId = req.params.conversationId;
+    const messages = await messageModel
+      .find({ conversation: conversationId })
+      .populate("sender")
+      .populate("conversation")
+      .populate({
+        path: "conversation",
+        populate: { path: "members.receiver", model: "Consumer" },
+      })
+      .populate({
+        path: "conversation",
+        populate: { path: "members.sender", model: "ServiceProvider" },
+      })
+      .sort({ createdAt: 1 });
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      messages,
     });
   } catch (error) {
     return res.status(500).json({

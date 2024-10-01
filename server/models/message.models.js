@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const messageSchema = mongoose.Schema(
+const messageSchema = new mongoose.Schema(
   {
     conversation: {
       type: mongoose.Schema.Types.ObjectId,
@@ -9,8 +9,13 @@ const messageSchema = mongoose.Schema(
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Consumer" || "ServiceProvider",
+      refPath: "senderType",
       required: [true, "Message must have a sender"],
+    },
+    senderType: {
+      type: String,
+      enum: ["Consumer", "ServiceProvider"],
+      required: [true, "Sender type is required"],
     },
     message: {
       type: String,

@@ -24,6 +24,10 @@ const {
   refundAmountRequest,
   loadAllRefunds,
   changeConsumerAddress,
+  createConversation,
+  loadConversations,
+  sendMessage,
+  loadMessages,
 } = require("../controllers/consumer.controllers");
 const isConsumerAuthenticated = require("../middlewares/isConsumerAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -77,5 +81,18 @@ Router.route("/load-refunds").get(isConsumerAuthenticated, loadAllRefunds);
 Router.route("/change-consumer-address").post(
   isConsumerAuthenticated,
   changeConsumerAddress
+);
+Router.route("/create-conversation").post(
+  isConsumerAuthenticated,
+  createConversation
+);
+Router.route("/load-consumer-conversations").get(
+  isConsumerAuthenticated,
+  loadConversations
+);
+Router.route("/send-message").post(isConsumerAuthenticated, sendMessage);
+Router.route("/load-messages/:conversationId").get(
+  isConsumerAuthenticated,
+  loadMessages
 );
 module.exports = Router;

@@ -26,6 +26,10 @@ const {
   loadCancelledOrders,
   loadAcceptedOrders,
   completeOrder,
+  createConversation,
+  loadConversations,
+  sendMessage,
+  loadMessages,
 } = require("../controllers/serviceProvider.controllers");
 const isServiceProviderAuthenticated = require("../middlewares/isServiceProviderAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -119,5 +123,19 @@ Router.route("/load-new-notifications").get(
 Router.route("/read-notification/:id").get(
   isServiceProviderAuthenticated,
   readNotification
+);
+
+Router.route("/create-conversation").post(
+  isServiceProviderAuthenticated,
+  createConversation
+);
+Router.route("/load-conversations").get(
+  isServiceProviderAuthenticated,
+  loadConversations
+);
+Router.route("/send-message").post(isServiceProviderAuthenticated, sendMessage);
+Router.route("/load-messages/:conversationId").get(
+  isServiceProviderAuthenticated,
+  loadMessages
 );
 module.exports = Router;
