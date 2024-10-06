@@ -575,7 +575,8 @@ exports.acceptOrder = async (req, res) => {
         servicePostMessage: order.servicePost.servicePostMessage,
         _id: order._id,
       },
-      "This order has been accepted"
+      "This order has been accepted",
+      "Accepted By"
     );
 
     await new notificationModel({

@@ -414,7 +414,7 @@ exports.rejectRefundRequest = async (req, res) => {
       req.admin.adminFullName
     );
     await new notificationModel({
-      notificationMessage: `Refund #${refundRequestExisted._id} has been approved by ${req.admin.adminFullName}`,
+      notificationMessage: `Refund #${refundRequestExisted._id} has rejected by ${req.admin.adminFullName}`,
       notificationSendBy: req.admin._id,
       notificationReceivedBy: refundRequestExisted.refundRequestedBy,
     }).save();

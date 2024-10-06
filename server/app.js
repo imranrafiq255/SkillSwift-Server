@@ -46,7 +46,6 @@ io.on("connection", (socket) => {
         io.to(receiver.socketId).emit("receivedMessage", {
           message: message,
         });
-        console.log("Message sent from:", senderId, "to:", receiverId);
       }
     } catch (error) {
       console.error("Error sending message:", error);

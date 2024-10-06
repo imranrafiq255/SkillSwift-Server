@@ -385,7 +385,7 @@ exports.orderService = async (req, res) => {
       "Ordered By"
     );
     await new notificationModel({
-      notificationMessage: `Your order has been placed please see details below:`,
+      notificationMessage: `Your order has placed by ${req?.consumer?.consumerFullName}`,
       notificationSendBy: req.consumer._id,
       notificationReceivedBy: order.serviceProvider,
       notificationType: order._id,
@@ -567,6 +567,7 @@ exports.fileDispute = async (req, res) => {
         message: "Service provider not found",
       });
     }
+    const { disputeTitle, disputeDetails, order } = req.body;
     const dispute = await disputeModel.findOne({
       disputeFiledBy: req.consumer._id,
       disputeFiledAgainst: id,
@@ -579,7 +580,6 @@ exports.fileDispute = async (req, res) => {
           "You have already filed a dispute against this service provider",
       });
     }
-    const { disputeTitle, disputeDetails, order } = req.body;
     await new disputeModel({
       disputeTitle,
       disputeDetails,
