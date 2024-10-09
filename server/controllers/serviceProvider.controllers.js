@@ -14,6 +14,7 @@ const serviceOrderModel = require("../models/serviceOrder.models");
 const notificationModel = require("../models/notification.models");
 const conversationModel = require("../models/Conversation.models");
 const messageModel = require("../models/message.models");
+const disputeModel = require("../models/dispute.models");
 exports.signUp = async (req, res) => {
   try {
     const {
@@ -101,7 +102,7 @@ exports.verifyEmail = async (req, res) => {
     );
     const options = {
       httpOnly: true,
-      secure: true,
+      // secure: true, // this is causing issues for remote access
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
     res.cookie("serviceProviderToken", token, options);
@@ -218,7 +219,7 @@ exports.signIn = async (req, res) => {
     );
     const options = {
       httpOnly: true,
-      secure: true,
+      // secure: true, // this is causing issues for remote access
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
     res.cookie("serviceProviderToken", token, options);
@@ -934,6 +935,33 @@ exports.readNotification = async (req, res) => {
     });
   }
 };
+exports.loadServiceProviderDisputes = async (req, res) => {
+  try {
+    const disputes = await disputeModel
+      .find({
+        disputeFiledAgainst: req.serviceProvider._id,
+      })
+      .populate("disputeFiledBy")
+      .populate("disputeFiledAgainst")
+      .populate({
+        path: "order",
+        populate: {
+          path: "servicePost",
+          model: "ServicePost",
+        },
+      });
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      disputes,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
 
 exports.createConversation = async (req, res) => {
   try {
@@ -1095,11 +1123,11 @@ exports.loadMessages = async (req, res) => {
       .populate("conversation")
       .populate({
         path: "conversation",
-        populate: { path: "members.receiver", model: "Consumer" },
+        populate: { path: "members.sender", model: "Consumer" },
       })
       .populate({
         path: "conversation",
-        populate: { path: "members.sender", model: "ServiceProvider" },
+        populate: { path: "members.receiver", model: "ServiceProvider" },
       })
       .sort({ createdAt: 1 });
 

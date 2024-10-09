@@ -38,7 +38,7 @@ const disputeSchema = mongoose.Schema(
       type: String,
     },
   },
-  { timestamp: true }
+  { timestamps: true }
 );
 
 const disputeModel = mongoose.model("Dispute", disputeSchema);

@@ -30,6 +30,7 @@ const {
   loadConversations,
   sendMessage,
   loadMessages,
+  loadServiceProviderDisputes,
 } = require("../controllers/serviceProvider.controllers");
 const isServiceProviderAuthenticated = require("../middlewares/isServiceProviderAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -124,7 +125,10 @@ Router.route("/read-notification/:id").get(
   isServiceProviderAuthenticated,
   readNotification
 );
-
+Router.route("/load-disputes").get(
+  isServiceProviderAuthenticated,
+  loadServiceProviderDisputes
+);
 Router.route("/create-conversation").post(
   isServiceProviderAuthenticated,
   createConversation

@@ -90,7 +90,7 @@ exports.verifyEmail = async (req, res) => {
     );
     const options = {
       httpOnly: true,
-      secure: true,
+      // secure: true, // this is causing issues for remote access
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
     res.cookie("consumerToken", token, options);
@@ -207,7 +207,7 @@ exports.signIn = async (req, res) => {
 
     const options = {
       httpOnly: true,
-      secure: true,
+      // secure: true, // this is causing issues for remote access
       maxAge: 1000 * 24 * 60 * 60 * 20,
     };
 
@@ -1049,11 +1049,11 @@ exports.loadMessages = async (req, res) => {
       .populate("conversation")
       .populate({
         path: "conversation",
-        populate: { path: "members.receiver", model: "Consumer" },
+        populate: { path: "members.sender", model: "Consumer" },
       })
       .populate({
         path: "conversation",
-        populate: { path: "members.sender", model: "ServiceProvider" },
+        populate: { path: "members.receiver", model: "ServiceProvider" },
       })
       .sort({ createdAt: 1 });
 

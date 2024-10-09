@@ -82,7 +82,7 @@ exports.signIn = async (req, res) => {
     );
     const options = {
       httpOnly: true,
-      secure: true,
+      // secure: true, // this is causing issues for remote access
       maxAge: 1000 * 24 * 60 * 60 * 10,
     };
     res.cookie("adminToken", token, options);
