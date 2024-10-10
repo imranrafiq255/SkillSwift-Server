@@ -28,6 +28,7 @@ const {
   loadConversations,
   sendMessage,
   loadMessages,
+  serviceProviderRatings,
 } = require("../controllers/consumer.controllers");
 const isConsumerAuthenticated = require("../middlewares/isConsumerAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -94,5 +95,9 @@ Router.route("/send-message").post(isConsumerAuthenticated, sendMessage);
 Router.route("/load-messages/:conversationId").get(
   isConsumerAuthenticated,
   loadMessages
+);
+Router.route("/service-provider-rating/:id").get(
+  isConsumerAuthenticated,
+  serviceProviderRatings
 );
 module.exports = Router;

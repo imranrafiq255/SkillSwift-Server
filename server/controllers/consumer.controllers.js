@@ -1068,3 +1068,41 @@ exports.loadMessages = async (req, res) => {
     });
   }
 };
+exports.serviceProviderRatings = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const serviceProvider = await serviceProviderModel.findOne({ _id: id });
+    if (!serviceProvider) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service Provider not found",
+      });
+    }
+    const servicePosts = await servicePostModel.find({ serviceProvider: id });
+    const allRatings = servicePosts
+      .map((post) => post.servicePostRatings)
+      .flat()
+      .filter((rating) => rating && rating.rating !== undefined);
+
+    if (allRatings.length === 0) {
+      return res.status(200).json({
+        statusCode: STATUS_CODES[200],
+        averageRating: 0,
+      });
+    }
+    const totalRatings = allRatings.reduce(
+      (sum, rating) => sum + rating.rating,
+      0
+    );
+    const averageRating = totalRatings / allRatings.length;
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      averageRating,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
