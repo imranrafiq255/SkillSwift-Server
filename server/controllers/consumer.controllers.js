@@ -348,6 +348,28 @@ exports.orderService = async (req, res) => {
         message: "Service provider not found",
       });
     }
+    const existedPendingOrderForThisService = await serviceOrderModel.findOne({
+      serviceProvider,
+      orderDeliverySchedule,
+      orderStatus: "pending",
+    });
+    if (existedPendingOrderForThisService) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: `${orderDeliverySchedule} is busy from this service provider`,
+      });
+    }
+    const existedAcceptedOrderForThisService = await serviceOrderModel.findOne({
+      serviceProvider,
+      orderDeliverySchedule,
+      orderStatus: "accepted",
+    });
+    if (existedAcceptedOrderForThisService) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: `${orderDeliverySchedule} is busy from this service provider`,
+      });
+    }
     if (existedOrder) {
       if (existedOrder.orderStatus === "pending") {
         return res.status(400).json({
@@ -1098,6 +1120,7 @@ exports.serviceProviderRatings = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       averageRating,
+      total: allRatings.length,
     });
   } catch (error) {
     return res.status(500).json({

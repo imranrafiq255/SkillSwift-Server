@@ -362,22 +362,20 @@ exports.resetPassword = async (req, res) => {
 exports.setWorkingHours = async (req, res) => {
   try {
     const { serviceProviderWorkingHours } = req.body;
-
-    const isDayExisted = await serviceProviderModel.findOne({
+    const serviceProvider = await serviceProviderModel.findOne({
       _id: req.serviceProvider._id,
-      "serviceProviderWorkingHours.dayOfWeek":
-        serviceProviderWorkingHours.dayOfWeek,
     });
-
-    if (isDayExisted) {
+    const isTimeExisted = serviceProvider?.serviceProviderWorkingHours?.find(
+      (time) =>
+        time.dayOfWeek === serviceProviderWorkingHours.dayOfWeek &&
+        time.time === serviceProviderWorkingHours.time
+    );
+    if (isTimeExisted) {
       return res.status(400).json({
         statusCode: STATUS_CODES[400],
         message: "Working hours for this day already exists",
       });
     }
-    const serviceProvider = await serviceProviderModel.findOne({
-      _id: req.serviceProvider._id,
-    });
     serviceProvider.serviceProviderWorkingHours.push(
       serviceProviderWorkingHours
     );
@@ -393,6 +391,40 @@ exports.setWorkingHours = async (req, res) => {
     });
   }
 };
+exports.deleteWorkingHours = async (req, res) => {
+  try {
+    const { dayOfWeek, time } = req.query;
+
+    const serviceProvider = await serviceProviderModel.findOne({
+      _id: req.serviceProvider._id,
+    });
+
+    const index = serviceProvider.serviceProviderWorkingHours.findIndex(
+      (time1) => time1.dayOfWeek === dayOfWeek && time1.time === time
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Working hours not found",
+      });
+    }
+
+    serviceProvider.serviceProviderWorkingHours.splice(index, 1);
+    await serviceProvider.save();
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Service provider working hours deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
 exports.addCNICDetails = async (req, res) => {
   try {
     const serviceProvider = await serviceProviderModel.findById({

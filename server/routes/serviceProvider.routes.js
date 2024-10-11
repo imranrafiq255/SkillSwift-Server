@@ -31,6 +31,7 @@ const {
   sendMessage,
   loadMessages,
   loadServiceProviderDisputes,
+  deleteWorkingHours,
 } = require("../controllers/serviceProvider.controllers");
 const isServiceProviderAuthenticated = require("../middlewares/isServiceProviderAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -57,6 +58,10 @@ Router.route("/load-current-service-provider").get(
 Router.route("/set-working-hours").post(
   isServiceProviderAuthenticated,
   setWorkingHours
+);
+Router.route("/delete-working-hours").delete(
+  isServiceProviderAuthenticated,
+  deleteWorkingHours
 );
 Router.route("/add-cnic-details").post(
   isServiceProviderAuthenticated,
