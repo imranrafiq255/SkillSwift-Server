@@ -29,6 +29,9 @@ const {
   sendMessage,
   loadMessages,
   serviceProviderRatings,
+  addCustomService,
+  deleteCustomService,
+  loadCustomServices,
 } = require("../controllers/consumer.controllers");
 const isConsumerAuthenticated = require("../middlewares/isConsumerAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -99,5 +102,17 @@ Router.route("/load-messages/:conversationId").get(
 Router.route("/service-provider-rating/:id").get(
   isConsumerAuthenticated,
   serviceProviderRatings
+);
+Router.route("/add-custom-service").post(
+  isConsumerAuthenticated,
+  addCustomService
+);
+Router.route("/delete-custom-service/:id").delete(
+  isConsumerAuthenticated,
+  deleteCustomService
+);
+Router.route("/load-custom-services").get(
+  isConsumerAuthenticated,
+  loadCustomServices
 );
 module.exports = Router;

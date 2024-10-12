@@ -32,6 +32,10 @@ const {
   loadMessages,
   loadServiceProviderDisputes,
   deleteWorkingHours,
+  deleteCustomService,
+  loadCustomServices,
+  markIntersetedCustomService,
+  createCustomServiceConversation,
 } = require("../controllers/serviceProvider.controllers");
 const isServiceProviderAuthenticated = require("../middlewares/isServiceProviderAuthenticated.middlewares");
 const singleImageUpload = require("../middlewares/singleImageUpload.middlewares");
@@ -146,5 +150,21 @@ Router.route("/send-message").post(isServiceProviderAuthenticated, sendMessage);
 Router.route("/load-messages/:conversationId").get(
   isServiceProviderAuthenticated,
   loadMessages
+);
+Router.route("/delete-custom-service/:id").delete(
+  isServiceProviderAuthenticated,
+  deleteCustomService
+);
+Router.route("/load-custom-services").get(
+  isServiceProviderAuthenticated,
+  loadCustomServices
+);
+Router.route("/mark-interseted-custom-service/:id").get(
+  isServiceProviderAuthenticated,
+  markIntersetedCustomService
+);
+Router.route("/create-custom-service-chat").post(
+  isServiceProviderAuthenticated,
+  createCustomServiceConversation
 );
 module.exports = Router;

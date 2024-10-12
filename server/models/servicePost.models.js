@@ -32,6 +32,11 @@ const servicePostSchema = mongoose.Schema(
           ref: "Consumer",
           required: [true, "Consumer id is required"],
         },
+        orderId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "ServiceOrder",
+          required: [true, "Order id is required"],
+        },
         rating: {
           type: Number,
           min: 1,

@@ -15,6 +15,7 @@ const notificationModel = require("../models/notification.models");
 const conversationModel = require("../models/Conversation.models");
 const messageModel = require("../models/message.models");
 const disputeModel = require("../models/dispute.models");
+const customServiceModel = require("../models/customService.models");
 exports.signUp = async (req, res) => {
   try {
     const {
@@ -1166,6 +1167,145 @@ exports.loadMessages = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       messages,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+
+exports.deleteCustomService = async (req, res) => {
+  try {
+    await customServiceModel.deleteOne({
+      _id: req.params.id,
+    });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Custom service deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadCustomServices = async (req, res) => {
+  try {
+    const customServices = await customServiceModel
+      .find()
+      .populate("consumer")
+      .populate("serviceProviders")
+      .sort({ serviceProvider: -1 })
+      .exec();
+
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      customServices,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.markIntersetedCustomService = async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const service = await customServiceModel.findOne({ _id: id });
+    if (!service) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Custom service not found",
+      });
+    }
+    if (service.serviceProviders.includes(req.serviceProvider._id)) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "You have already marked this custom service as interested",
+      });
+    }
+    service.serviceProviders.push(req.serviceProvider._id);
+    await service.save();
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Marked as interested successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.createCustomServiceConversation = async (req, res) => {
+  try {
+    const { receiverType, consumer } = req.body;
+    const receiver = req?.serviceProvider?._id;
+    if (consumer) {
+      var sender = consumer;
+      var senderType = "Consumer";
+    }
+
+    if (receiver.toString() === sender.toString()) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "You cannot start a conversation with yourself",
+      });
+    }
+
+    if (
+      !receiver ||
+      !receiverType ||
+      !["Consumer", "ServiceProvider"].includes(receiverType)
+    ) {
+      return res.status(400).json({
+        statusCode: STATUS_CODES[400],
+        message: "Invalid receiver information",
+      });
+    }
+
+    const existingConversation = await conversationModel.findOne({
+      $or: [
+        {
+          "members.sender": sender,
+          "members.receiver": receiver,
+          memberTypeSender: senderType,
+          memberTypeReceiver: receiverType,
+        },
+        {
+          "members.sender": receiver,
+          "members.receiver": sender,
+          memberTypeSender: receiverType,
+          memberTypeReceiver: senderType,
+        },
+      ],
+    });
+
+    if (existingConversation) {
+      return res.status(409).json({
+        statusCode: STATUS_CODES[409],
+        message: "A conversation with this user already exists",
+      });
+    }
+
+    const newConversation = new conversationModel({
+      members: {
+        sender,
+        receiver,
+      },
+      memberTypeSender: senderType,
+      memberTypeReceiver: receiverType,
+    });
+
+    await newConversation.save();
+    return res.status(201).json({
+      statusCode: STATUS_CODES[201],
+      message: "Conversation created successfully",
     });
   } catch (error) {
     return res.status(500).json({

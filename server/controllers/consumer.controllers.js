@@ -19,6 +19,7 @@ const refundModel = require("../models/refund.models");
 const { promise } = require("bcrypt/promises");
 const conversationModel = require("../models/Conversation.models");
 const messageModel = require("../models/message.models");
+const customServiceModel = require("../models/customService.models");
 exports.signUp = async (req, res) => {
   try {
     const { consumerFullName, consumerEmail, consumerPassword } = req.body;
@@ -686,18 +687,33 @@ exports.addRating = async (req, res) => {
     if (!id) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
-        message: "Id paramter is required",
+        message: "Id parameter is required",
       });
     }
-    const servicePost = await servicePostModel.findOne({ _id: id });
+
+    const order = await serviceOrderModel.findOne({ _id: id });
+    if (!order) {
+      return res.status(404).json({
+        statusCode: STATUS_CODES[404],
+        message: "Service order not found with given id",
+      });
+    }
+
+    const servicePost = await servicePostModel.findOne({
+      _id: order?.servicePost,
+    });
     if (!servicePost) {
       return res.status(404).json({
         statusCode: STATUS_CODES[404],
         message: "Service post not found with given id",
       });
     }
+    console.log(servicePost);
+
     const isRatingExisted = servicePost.servicePostRatings.find(
-      (rating) => rating.consumerId.toString() === req.consumer._id.toString()
+      (rating) =>
+        rating.consumerId.toString() === req.consumer._id.toString() &&
+        rating.orderId.toString() === id.toString()
     );
 
     if (isRatingExisted) {
@@ -710,6 +726,7 @@ exports.addRating = async (req, res) => {
     const { ratingStars } = req.body;
     servicePost.servicePostRatings.push({
       consumerId: req?.consumer?._id,
+      orderId: id, // Correctly assigning the orderId here
       rating: ratingStars,
     });
     await servicePost.save();
@@ -724,6 +741,7 @@ exports.addRating = async (req, res) => {
     });
   }
 };
+
 exports.submitRefundRequest = async (req, res) => {
   try {
     const id = req.params.id;
@@ -807,7 +825,8 @@ exports.loadPopularServicePosts = async (req, res) => {
       const servicePosts = await servicePostModel
         .find()
         .sort({ servicePostRatings: -1 })
-        .populate("serviceProvider");
+        .populate("serviceProvider")
+        .limit(4);
       return res.status(200).json({
         statusCode: STATUS_CODES[200],
         servicePosts,
@@ -1105,11 +1124,12 @@ exports.serviceProviderRatings = async (req, res) => {
       .map((post) => post.servicePostRatings)
       .flat()
       .filter((rating) => rating && rating.rating !== undefined);
-
+    total = allRatings.length;
     if (allRatings.length === 0) {
       return res.status(200).json({
         statusCode: STATUS_CODES[200],
         averageRating: 0,
+        total,
       });
     }
     const totalRatings = allRatings.reduce(
@@ -1120,7 +1140,72 @@ exports.serviceProviderRatings = async (req, res) => {
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
       averageRating,
-      total: allRatings.length,
+      total,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.addCustomService = async (req, res) => {
+  try {
+    const { serviceTitle, serviceDescription, serviceBudget } = req.body;
+    const existingCustomService = await customServiceModel.findOne({
+      consumer: req?.consumer?._id,
+    });
+    if (existingCustomService) {
+      return res.status(409).json({
+        statusCode: STATUS_CODES[409],
+        message: "You have already added a custom service",
+      });
+    }
+    await customServiceModel({
+      serviceTitle,
+      serviceDescription,
+      serviceBudget,
+      consumer: req?.consumer?._id,
+    }).save();
+    return res.status(201).json({
+      statusCode: STATUS_CODES[201],
+      message: "Custom service added successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.deleteCustomService = async (req, res) => {
+  try {
+    await customServiceModel.deleteOne({
+      _id: req.params.id,
+      consumer: req.consumer._id,
+    });
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      message: "Custom service deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      statusCode: STATUS_CODES[500],
+      message: error.message,
+    });
+  }
+};
+exports.loadCustomServices = async (req, res) => {
+  try {
+    const customServices = await customServiceModel
+      .find({
+        consumer: req.consumer._id,
+      })
+      .populate("consumer")
+      .populate("serviceProviders");
+    return res.status(200).json({
+      statusCode: STATUS_CODES[200],
+      customServices,
     });
   } catch (error) {
     return res.status(500).json({
