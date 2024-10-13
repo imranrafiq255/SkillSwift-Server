@@ -1230,6 +1230,7 @@ exports.markIntersetedCustomService = async (req, res) => {
       });
     }
     service.serviceProviders.push(req.serviceProvider._id);
+    service.isInterested = true;
     await service.save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],

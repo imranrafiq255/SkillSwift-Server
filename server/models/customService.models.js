@@ -27,6 +27,10 @@ const customServiceSchema = mongoose.Schema(
         ref: "ServiceProvider",
       },
     ],
+    isInterested: {
+      type: Boolean,
+      default: false,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
