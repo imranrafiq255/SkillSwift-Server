@@ -373,7 +373,8 @@ exports.approveRefundRequest = async (req, res) => {
     await new notificationModel({
       notificationMessage: `Refund #${refundRequestExisted._id} has been approved by ${req.admin.adminFullName}`,
       notificationSendBy: req.admin._id,
-      notificationReceivedBy: refundRequestExisted.refundRequestedBy,
+      notificationReceivedBy:
+        refundRequestExisted.refundRequestedBy?.consumerFullName,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],
@@ -416,7 +417,8 @@ exports.rejectRefundRequest = async (req, res) => {
     await new notificationModel({
       notificationMessage: `Refund #${refundRequestExisted._id} has rejected by ${req.admin.adminFullName}`,
       notificationSendBy: req.admin._id,
-      notificationReceivedBy: refundRequestExisted.refundRequestedBy,
+      notificationReceivedBy:
+        refundRequestExisted.refundRequestedBy?.consumerFullName,
     }).save();
     return res.status(200).json({
       statusCode: STATUS_CODES[200],

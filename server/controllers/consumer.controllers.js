@@ -708,7 +708,6 @@ exports.addRating = async (req, res) => {
         message: "Service post not found with given id",
       });
     }
-    console.log(servicePost);
 
     const isRatingExisted = servicePost.servicePostRatings.find(
       (rating) =>
